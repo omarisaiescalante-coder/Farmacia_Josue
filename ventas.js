@@ -7,7 +7,6 @@ module.exports = {
         { name: "numero_factura", label: "Numero factura", required: true },
         { name: "id_cliente", label: "ID cliente", type: "number" },
         { name: "id_usuario", label: "ID usuario", type: "number", required: true },
-        { name: "id_receta", label: "ID receta", type: "number" },
         { name: "subtotal", label: "Subtotal", type: "number", step: "0.01", required: true },
         { name: "descuento", label: "Descuento", type: "number", step: "0.01" },
         { name: "impuesto", label: "Impuesto", type: "number", step: "0.01" },

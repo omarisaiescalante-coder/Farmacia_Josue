@@ -47,7 +47,6 @@ CREATE TABLE Movimientos_Puntos (
 
 id_movimiento INT AUTO_INCREMENT PRIMARY KEY,
 id_cliente INT NOT NULL,
-id_venta INT,
 tipo_movimiento ENUM('Acumulacion','Canje','Ajuste') NOT NULL,
 cantidad_puntos INT NOT NULL,
 puntos_anteriores INT NOT NULL,
@@ -143,7 +142,6 @@ id_venta INT AUTO_INCREMENT PRIMARY KEY,
 numero_factura VARCHAR(30) UNIQUE NOT NULL,
 id_cliente INT,
 id_usuario INT NOT NULL,
-id_receta INT,
 fecha_venta DATETIME DEFAULT CURRENT_TIMESTAMP,
 subtotal DECIMAL(10,2) NOT NULL,
 descuento DECIMAL(10,2) DEFAULT 0.00,
@@ -167,7 +165,6 @@ CREATE TABLE Detalles_venta (
 id_detalle_venta INT AUTO_INCREMENT PRIMARY KEY,
 id_venta INT NOT NULL,
 id_medicamento INT NOT NULL,
-id_lote INT NOT NULL,
 cantidad INT NOT NULL,
 precio_unitario DECIMAL(10,2) NOT NULL,
 descuento DECIMAL(10,2) DEFAULT 0.00,
@@ -284,13 +281,13 @@ VALUES
 -- =========================================================
 
 INSERT INTO Ventas
-(id_venta, numero_factura, id_cliente, id_usuario, id_receta, fecha_venta, subtotal, descuento, impuesto, total, metodo_pago, monto_recibido, cambio, puntos_generados, puntos_utilizados, estado)
+(id_venta, numero_factura, id_cliente, id_usuario, fecha_venta, subtotal, descuento, impuesto, total, metodo_pago, monto_recibido, cambio, puntos_generados, puntos_utilizados, estado)
 VALUES
-(1, 'FAC-0001', 1, 2, NULL, '2026-07-10 09:15:00', 100.00, 0.00, 15.00, 115.00, 'Efectivo', 120.00, 5.00, 11, 0, 'Completada'),
-(2, 'FAC-0002', 2, 2, NULL, '2026-07-10 10:30:00', 130.00, 10.00, 18.00, 138.00, 'Tarjeta', 138.00, 0.00, 13, 5, 'Completada'),
-(3, 'FAC-0003', 3, 4, 1, '2026-07-11 11:45:00', 125.00, 0.00, 18.75, 143.75, 'Efectivo', 150.00, 6.25, 14, 0, 'Completada'),
-(4, 'FAC-0004', 4, 4, NULL, '2026-07-12 14:20:00', 126.00, 6.00, 18.00, 138.00, 'Transferencia', 138.00, 0.00, 13, 10, 'Completada'),
-(5, 'FAC-0005', 5, 2, NULL, '2026-07-13 16:10:00', 95.00, 0.00, 14.25, 109.25, 'Mixto', 110.00, 0.75, 10, 0, 'Completada');
+(1, 'FAC-0001', 1, 2, '2026-07-10 09:15:00', 100.00, 0.00, 15.00, 115.00, 'Efectivo', 120.00, 5.00, 11, 0, 'Completada'),
+(2, 'FAC-0002', 2, 2, '2026-07-10 10:30:00', 130.00, 10.00, 18.00, 138.00, 'Tarjeta', 138.00, 0.00, 13, 5, 'Completada'),
+(3, 'FAC-0003', 3, 4, '2026-07-11 11:45:00', 125.00, 0.00, 18.75, 143.75, 'Efectivo', 150.00, 6.25, 14, 0, 'Completada'),
+(4, 'FAC-0004', 4, 4, '2026-07-12 14:20:00', 126.00, 6.00, 18.00, 138.00, 'Transferencia', 138.00, 0.00, 13, 10, 'Completada'),
+(5, 'FAC-0005', 5, 2, '2026-07-13 16:10:00', 95.00, 0.00, 14.25, 109.25, 'Mixto', 110.00, 0.75, 10, 0, 'Completada');
 
 
 -- =========================================================
@@ -298,13 +295,13 @@ VALUES
 -- =========================================================
 
 INSERT INTO Detalles_venta
-(id_detalle_venta, id_venta, id_medicamento, id_lote, cantidad, precio_unitario, descuento, subtotal)
+(id_detalle_venta, id_venta, id_medicamento, cantidad, precio_unitario, descuento, subtotal)
 VALUES
-(1, 1, 1, 1, 2, 50.00, 0.00, 100.00),
-(2, 2, 2, 2, 2, 65.00, 0.00, 130.00),
-(3, 3, 3, 3, 1, 125.00, 0.00, 125.00),
-(4, 4, 4, 4, 3, 42.00, 0.00, 126.00),
-(5, 5, 5, 5, 1, 95.00, 0.00, 95.00);
+(1, 1, 1, 2, 50.00, 0.00, 100.00),
+(2, 2, 2, 2, 65.00, 0.00, 130.00),
+(3, 3, 3, 1, 125.00, 0.00, 125.00),
+(4, 4, 4, 3, 42.00, 0.00, 126.00),
+(5, 5, 5, 1, 95.00, 0.00, 95.00);
 
 
 -- =========================================================
@@ -312,12 +309,10 @@ VALUES
 -- =========================================================
 
 INSERT INTO Movimientos_Puntos
-(id_movimiento, id_cliente, id_venta, tipo_movimiento, cantidad_puntos, puntos_anteriores, puntos_nuevos, descripcion, fecha_movimiento)
+(id_movimiento, id_cliente, tipo_movimiento, cantidad_puntos, puntos_anteriores, puntos_nuevos, descripcion, fecha_movimiento)
 VALUES
-(1, 1, 1, 'Acumulacion', 11, 14, 25, 'Puntos obtenidos por la compra FAC-0001', '2026-07-10 09:16:00'),
-(2, 2, 2, 'Canje', 5, 32, 27, 'Puntos utilizados como descuento en la compra FAC-0002', '2026-07-10 10:31:00'),
-(3, 2, 2, 'Acumulacion', 13, 27, 40, 'Puntos obtenidos por la compra FAC-0002', '2026-07-10 10:32:00'),
-(4, 3, 3, 'Acumulacion', 14, 1, 15, 'Puntos obtenidos por la compra FAC-0003', '2026-07-11 11:46:00'),
-(5, 4, 4, 'Acumulacion', 13, 7, 20, 'Puntos obtenidos por la compra FAC-0004', '2026-07-12 14:21:00');
-
-
+(1, 1, 'Acumulacion', 11, 14, 25, 'Puntos obtenidos por la compra FAC-0001', '2026-07-10 09:16:00'),
+(2, 2, 'Canje', 5, 32, 27, 'Puntos utilizados como descuento en la compra FAC-0002', '2026-07-10 10:31:00'),
+(3, 2, 'Acumulacion', 13, 27, 40, 'Puntos obtenidos por la compra FAC-0002', '2026-07-10 10:32:00'),
+(4, 3, 'Acumulacion', 14, 1, 15, 'Puntos obtenidos por la compra FAC-0003', '2026-07-11 11:46:00'),
+(5, 4, 'Acumulacion', 13, 7, 20, 'Puntos obtenidos por la compra FAC-0004', '2026-07-12 14:21:00');
