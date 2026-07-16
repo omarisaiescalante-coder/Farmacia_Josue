@@ -1,0 +1,19 @@
+{
+  "name": "proyecto_farmacia",
+  "version": "1.0.0",
+  "description": "",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron ."
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "devDependencies": {
+    "electron": "^43.1.1"
+  },
+  "dependencies": {
+    "mysql2": "^3.23.0"
+  }
+}
