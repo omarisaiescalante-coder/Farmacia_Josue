@@ -8,10 +8,7 @@ const modules = {
     recetas: require("./recetas"),
     lote: require("./lote"),
     ventas: require("./ventas"),
-    detalles_venta: require("./detalles_venta"),
-    detalle_recetas: require("./detalle_recetas"),
-    movimientos_puntos: require("./movimientos_puntos")
-};
+    };
 
 let currentModule = "clientes";
 let editingId = null;
