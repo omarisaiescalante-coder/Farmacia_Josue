@@ -24,7 +24,6 @@ const moduleDescription = document.getElementById("moduleDescription");
 const sessionUser = document.getElementById("sessionUser");
 const saveBtn = document.getElementById("saveBtn");
 const clearBtn = document.getElementById("clearBtn");
-const refreshBtn = document.getElementById("refreshBtn");
 const logoutBtn = document.getElementById("logoutBtn");
 const appMessage = document.getElementById("appMessage");
 const loginMessage = document.getElementById("loginMessage");
@@ -32,7 +31,6 @@ const loginMessage = document.getElementById("loginMessage");
 loginForm.addEventListener("submit", login);
 saveBtn.addEventListener("click", saveRecord);
 clearBtn.addEventListener("click", clearForm);
-refreshBtn.addEventListener("click", loadRows);
 logoutBtn.addEventListener("click", logout);
 
 document.querySelectorAll("[data-module]").forEach((button) => {
@@ -157,8 +155,8 @@ function renderTable(rows) {
         return;
     }
 
-    const columns = [config.id, ...config.fields.map((field) => field.name)];
-    const header = columns.map((column) => `<th>${getColumnLabel(config, column)}</th>`).join("");
+    const columns = config.fields.filter((field) => !field.name.startsWith("id_"))
+        .map((field) => field.name);    const header = columns.map((column) => `<th>${getColumnLabel(config, column)}</th>`).join("");
     const body = rows.map((row, index) => {
         const cells = columns.map((column) => `<td>${formatValue(row[column])}</td>`).join("");
 
