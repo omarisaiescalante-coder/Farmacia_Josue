@@ -7,12 +7,12 @@ module.exports = {
         { name: "nombre", label: "Nombre", required: true },
         { name: "apellido", label: "Apellido", required: true },
         { name: "identidad", label: "Identidad", required: true },
-        { name: "telefono", label: "Telefono", required: true },
+        { name: "telefono", label: "Teléfono", required: true },
         { name: "correo", label: "Correo", type: "email" },
-        { name: "direccion", label: "Direccion", wide: true, required: true },
-        { name: "nombre_usuario", label: "Nombre usuario", required: true },
-        { name: "contrasena", label: "Contrasena", type: "password", required: true },
-        { name: "rol", label: "Rol", type: "select", options: ["Administrador", "Cajero", "Farmaceutico"], required: true },
+        { name: "direccion", label: "Dirección", wide: true, required: true },
+        { name: "nombre_usuario", label: "Nombre de Usuario", required: true },
+        { name: "contrasena", label: "Contraseña", type: "password", required: true },
+        { name: "rol", label: "Rol", type: "select", options: ["Administrador", "Cajero", "Farmacéutico"], required: true },
         { name: "estado", label: "Estado", type: "select", options: ["Activo", "Inactivo"] }
     ]
 };

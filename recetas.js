@@ -4,14 +4,14 @@ module.exports = {
     table: "recetas",
     id: "id_receta",
     fields: [
-        { name: "codigo_receta", label: "Codigo receta", required: true },
-        { name: "id_cliente", label: "ID cliente", type: "number", required: true },
-        { name: "nombre_medico", label: "Nombre medico", required: true },
-        { name: "numero_colegiacion", label: "Numero colegiacion" },
-        { name: "clinica_hospital", label: "Clinica/Hospital", wide: true , required: true },
-        { name: "fecha_emision", label: "Fecha emision", type: "date", required: true },
-        { name: "fecha_vencimiento", label: "Fecha vencimiento", type: "date" },
-        { name: "diagnostico", label: "Diagnostico", wide: true },
+        { name: "codigo_receta", label: "Código Receta", required: true },
+        { name: "id_cliente", label: "ID Cliente", type: "number", required: true },
+        { name: "nombre_medico", label: "Nombre Médico", required: true },
+        { name: "numero_colegiacion", label: "Número Colegiación" },
+        { name: "clinica_hospital", label: "Clínica/Hospital", wide: true , required: true },
+        { name: "fecha_emision", label: "Fecha Emisión", type: "date", required: true },
+        { name: "fecha_vencimiento", label: "Fecha Vencimiento", type: "date" },
+        { name: "diagnostico", label: "Diagnóstico", wide: true },
         { name: "observaciones", label: "Observaciones", type: "textarea", full: true },
         { name: "estado", label: "Estado", type: "select", options: ["Pendiente", "Utilizada", "Vencida", "Cancelada"] }
     ]
