@@ -27,8 +27,13 @@ const clearBtn = document.getElementById("clearBtn");
 const logoutBtn = document.getElementById("logoutBtn");
 const appMessage = document.getElementById("appMessage");
 const loginMessage = document.getElementById("loginMessage");
+const loginPassword = document.getElementById("loginPassword");
+const showLoginPassword = document.getElementById("showLoginPassword");
 
 loginForm.addEventListener("submit", login);
+showLoginPassword.addEventListener("change", () => {
+    loginPassword.type = showLoginPassword.checked ? "text" : "password";
+});
 saveBtn.addEventListener("click", saveRecord);
 clearBtn.addEventListener("click", clearForm);
 logoutBtn.addEventListener("click", logout);
@@ -129,6 +134,29 @@ function renderForm() {
         input.name = field.name;
         if (field.required) input.required = true;
         group.appendChild(input);
+
+        if (field.type === "password") {
+            input.dataset.passwordField = "true";
+            const toggleContainer = document.createElement("div");
+            toggleContainer.className = "form-check mt-2";
+
+            const toggle = document.createElement("input");
+            toggle.type = "checkbox";
+            toggle.id = `show-${field.name}`;
+            toggle.className = "form-check-input";
+            toggle.addEventListener("change", () => {
+                input.type = toggle.checked ? "text" : "password";
+            });
+
+            const toggleLabel = document.createElement("label");
+            toggleLabel.htmlFor = toggle.id;
+            toggleLabel.className = "form-check-label";
+            toggleLabel.textContent = "Mostrar contraseña";
+
+            toggleContainer.append(toggle, toggleLabel);
+            group.appendChild(toggleContainer);
+        }
+
         crudForm.appendChild(group);
     });
 
@@ -282,12 +310,16 @@ function formatForInput(value) {
 
 function clearForm() {
     crudForm.reset();
+    crudForm.querySelectorAll('input[type="text"][data-password-field]').forEach((input) => {
+        input.type = "password";
+    });
     editingId = null;
     saveBtn.textContent = "Guardar";
 }
 
 function logout() {
     loginForm.reset();
+    loginPassword.type = "password";
     clearForm();
     tableContainer.innerHTML = "";
     appScreen.classList.add("d-none");
