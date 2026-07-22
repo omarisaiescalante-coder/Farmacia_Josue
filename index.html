@@ -154,6 +154,32 @@
         .records-table tbody tr:hover { --bs-table-hover-bg: #eef8f2; }
         .records-table .btn { border-radius: .55rem; }
         @media (max-width:575.98px) { .app-navbar { min-height:68px; } .session-pill { display:none; } .module-card { min-height:96px; padding:1rem; } .module-icon { width:46px; height:46px; } #crudSection { padding-top:1.25rem !important; } }
+    
+    /* Botón verde con la forma exacta y tamaño de Cerrar sesión, sin cambios al pasar el mouse */
+.custom-collapse-btn,
+.custom-collapse-btn:hover,
+.custom-collapse-btn:focus,
+.custom-collapse-btn:active {
+    background-color: #198754 !important; /* Verde de la farmacia */
+    border-color: #198754 !important;
+    color: #ffffff !important;
+    border-radius: 0.75rem !important; /* Mapeado al estilo redondeado de la app */
+    box-shadow: none !important;
+}
+
+/* Espaciado y transición para la flechita dentro del botón verde */
+.custom-collapse-btn .arrow-icon {
+    display: inline-block;
+    transition: transform 0.2s ease;
+    font-size: 0.75rem;
+    margin-left: 8px;
+}
+
+/* Rotación automática de la flecha hacia arriba cuando está abierto */
+.custom-collapse-btn[aria-expanded="true"] .arrow-icon {
+    transform: rotate(180deg);
+}
+    
     </style>
 </head>
 
@@ -472,21 +498,37 @@
 
             <div class="card workspace-card">
 
-                <div class="card-header bg-white">
+                <div class="card-header bg-white d-flex justify-content-between align-items-center">
 
                     <h3 class="h5 mb-0">
                         Registros
                     </h3>
 
+                    <!-- Botón con el tamaño y forma de 'Cerrar sesión' pero en verde -->
+                    <button 
+                        class="btn btn-success btn-sm px-3 py-2 custom-collapse-btn" 
+                        type="button" 
+                        data-bs-toggle="collapse" 
+                        data-bs-target="#tableCollapse" 
+                        aria-expanded="false" 
+                        aria-controls="tableCollapse"
+                    >
+                        <span class="btn-text">Desplegar la tabla</span>
+                        <span class="arrow-icon">▼</span>
+                    </button>
+
                 </div>
 
-                <div class="card-body">
+                <!-- Contenedor colapsable para ocultar/mostrar -->
+                <div class="collapse" id="tableCollapse">
+                    <div class="card-body">
 
-                    <div
-                        id="tableContainer"
-                        class="table-responsive"
-                    ></div>
+                        <div
+                            id="tableContainer"
+                            class="table-responsive"
+                        ></div>
 
+                    </div>
                 </div>
 
             </div>

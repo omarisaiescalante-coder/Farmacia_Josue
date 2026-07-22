@@ -889,3 +889,23 @@ function clearForm() {
     editingId = null;
     saveBtn.textContent = "Guardar";
 }
+
+/* =========================================================
+   Cargar datos al momento de desplegar la tabla y cambiar 
+   el texto del botón dinámicamente
+========================================================= */
+
+
+const tableCollapse = document.getElementById('tableCollapse');
+const toggleTableBtn = document.querySelector('.custom-collapse-btn');
+const btnTextSpan = toggleTableBtn ? toggleTableBtn.querySelector('.btn-text') : null;
+
+if (tableCollapse && btnTextSpan) {
+    tableCollapse.addEventListener('show.bs.collapse', function () {
+        btnTextSpan.textContent = "Ocultar tabla";
+    });
+
+    tableCollapse.addEventListener('hide.bs.collapse', function () {
+        btnTextSpan.textContent = "Desplegar la tabla";
+    });
+}
