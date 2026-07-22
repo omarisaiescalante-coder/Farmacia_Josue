@@ -260,15 +260,32 @@ function showMenuOptions() {
     */
     menuOptionsGrid.innerHTML = Object.entries(modules)
         .map(([key, module]) => {
+            const initials = module.title
+                .split(" ")
+                .map((word) => word[0])
+                .join("")
+                .slice(0, 2)
+                .toUpperCase();
+
             return `
-                <button
-                    class="btn btn-primary btn-lg
-                           text-center fw-semibold w-100"
-                    type="button"
-                    data-menu-option="${key}"
-                >
-                    ${escapeHtml(module.title)}
-                </button>
+                <div class="col-12 d-flex">
+                    <button
+                        class="module-card w-100"
+                        type="button"
+                        data-menu-option="${key}"
+                    >
+                        <span class="d-flex align-items-center gap-3 gap-sm-4">
+                            <span class="module-icon">${escapeHtml(initials)}</span>
+                            <span class="d-flex flex-grow-1 align-items-center justify-content-between gap-3">
+                                <span>
+                                <span class="d-block h5 fw-bold mb-1">${escapeHtml(module.title)}</span>
+                                <span class="d-block small text-secondary fw-normal">${escapeHtml(module.description)}</span>
+                                </span>
+                                <span class="module-arrow" aria-hidden="true">→</span>
+                            </span>
+                        </span>
+                    </button>
+                </div>
             `;
         })
         .join("");
@@ -535,7 +552,7 @@ function renderTable(rows) {
                     <td>
                         <div class="d-flex gap-2">
                             <button
-                                class="btn btn-success btn-sm"
+                                class="btn btn-outline-success btn-sm"
                                 type="button"
                                 onclick="editRecord(${index})"
                             >
@@ -562,11 +579,11 @@ function renderTable(rows) {
 
     tableContainer.innerHTML = `
         <table
-            class="table table-striped
-                   table-hover table-bordered
+            class="table records-table
+                   table-hover
                    align-middle mb-0"
         >
-            <thead class="table-dark">
+            <thead>
                 <tr>
                     ${header}
                     <th>Acciones</th>
