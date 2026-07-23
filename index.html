@@ -210,18 +210,20 @@
                                     </div>
 
                                     <h2 class="h3 fw-bold mb-3">
-                                        Gestiona tu farmacia con confianza
+                                        Gestiona tu farmacia 
                                     </h2>
                                     <p class="mb-4 opacity-90">
-                                        Administra usuarios, inventario y ventas desde una sola plataforma segura.
+                                        Descuentos y atención de calidad.
                                     </p>
+
+                                    
+                                    <p class="mb-4 opacity-90">
+                                    Usa un usuario activo para acceder al sistema.
+                                </p>
+
                                 </div>
 
-                                <ul class="feature-list">
-                                    <li>Acceso protegido para personal autorizado</li>
-                                    <li>Gestión rápida de medicamentos y ventas</li>
-                                    <li>Control de usuarios y operaciones diarias</li>
-                                </ul>
+                            
                             </div>
 
                             <div class="col-lg-7 p-4 p-lg-5 bg-white">
@@ -444,11 +446,74 @@
                     ← Volver atrás
                 </button>
 
+                 </div>
+
+
+            <!-- Busqueda de usuarios -->
+
+            <div id="userSearchSection" class="card workspace-card mb-4 d-none">
+
+                <div class="card-header bg-white">
+
+                    <h3 class="h5 mb-0">
+                        Buscar usuarios
+                    </h3>
+
+                </div>
+
+                <div class="card-body">
+
+                    <div class="row g-3 align-items-end">
+
+                        <div class="col-12 col-md-3">
+                            <label for="userSearchType" class="form-label fw-semibold">
+                                Buscar por
+                            </label>
+                            <select id="userSearchType" class="form-select">
+                                <option value="nombre">Nombre</option>
+                                <option value="identidad">Identidad</option>
+                                <option value="rol">Rol</option>
+                            </select>
+                        </div>
+
+                        <div class="col-12 col-md-5">
+                            <label for="userSearchText" class="form-label fw-semibold">
+                                Dato a buscar
+                            </label>
+                            <input
+                                id="userSearchText"
+                                class="form-control"
+                                type="text"
+                                placeholder="Escribe el dato"
+                            >
+                        </div>
+
+                        <div class="col-12 col-md-4 d-flex gap-2">
+                            <button
+                                id="userSearchBtn"
+                                class="btn btn-app-primary w-100"
+                                type="button"
+                            >
+                                Buscar
+                            </button>
+
+                            <button
+                                id="userSearchClearBtn"
+                                class="btn btn-app-muted w-100"
+                                type="button"
+                            >
+                                Mostrar todos
+                            </button>
+                        </div>
+
+                    </div>
+
+                </div>
+
             </div>
 
 
             <!-- Botones Guardar y Limpiar -->
-
             <div class="d-flex flex-wrap gap-2 mb-3">
 
                 <button
@@ -505,8 +570,8 @@
                     </h3>
 
                     <!-- Botón con el tamaño y forma de 'Cerrar sesión' pero en verde -->
+                    class="btn btn-success btn-sm px-3 py-2 custom-collapse-btn" 
                     <button 
-                        class="btn btn-success btn-sm px-3 py-2 custom-collapse-btn" 
                         type="button" 
                         data-bs-toggle="collapse" 
                         data-bs-target="#tableCollapse" 
@@ -546,7 +611,7 @@
 
     <!-- Renderer -->
 
-    <script src="./renderer.js?v=12"></script>
+    <script src="./renderer.js?v=13"></script>
 
 </body>
 </html>

@@ -15,7 +15,7 @@ let editingId = null;
 let currentRows = [];
 
 /* =========================================================
-   ELEMENTOS DEL HTML
+    ELEMENTOS DEL HTML
 ========================================================= */
 
 const loginScreen = document.getElementById("loginScreen");
@@ -32,6 +32,12 @@ const tableContainer = document.getElementById("tableContainer");
 const moduleTitle = document.getElementById("moduleTitle");
 const moduleDescription = document.getElementById("moduleDescription");
 const sessionUser = document.getElementById("sessionUser");
+
+const userSearchSection = document.getElementById("userSearchSection");
+const userSearchType = document.getElementById("userSearchType");
+const userSearchText = document.getElementById("userSearchText");
+const userSearchBtn = document.getElementById("userSearchBtn");
+const userSearchClearBtn = document.getElementById("userSearchClearBtn");
 
 const saveBtn = document.getElementById("saveBtn");
 const clearBtn = document.getElementById("clearBtn");
@@ -64,6 +70,15 @@ Este botón permite volver desde cualquier módulo
 al menú principal.
 */
 backMenuBtn.addEventListener("click", showMenuOptions);
+
+userSearchBtn.addEventListener("click", searchUsers);
+userSearchClearBtn.addEventListener("click", clearUserSearch);
+userSearchText.addEventListener("keydown", (event) => {
+    if (event.key === "Enter") {
+        event.preventDefault();
+        searchUsers();
+    }
+});
 
 showLoginPassword.addEventListener("change", () => {
     loginPassword.type = showLoginPassword.checked
@@ -232,9 +247,10 @@ function showMenuOptions() {
 
     crudForm.innerHTML = "";
     tableContainer.innerHTML = "";
+    userSearchText.value = "";
+    userSearchSection.classList.add("d-none");
 
     saveBtn.textContent = "Guardar";
-
     /*
     Mostrar el menú principal.
     */
@@ -327,12 +343,30 @@ async function changeModule(moduleName) {
     const config = modules[currentModule];
 
     moduleTitle.textContent = config.title;
-    moduleDescription.textContent =
+       moduleDescription.textContent =
         config.description;
 
+    renderSearchSection();
     renderForm();
 
     await loadRows();
+}
+
+/* =========================================================
+   BUSQUEDA DEL MODULO USUARIOS
+========================================================= */
+
+function renderSearchSection() {
+    const isUsersModule = currentModule === "usuarios";
+
+    userSearchSection.classList.toggle(
+        "d-none",
+        !isUsersModule
+    );
+
+    if (!isUsersModule) {
+        userSearchText.value = "";
+    }
 }
 
 /* =========================================================
@@ -907,5 +941,155 @@ if (tableCollapse && btnTextSpan) {
 
     tableCollapse.addEventListener('hide.bs.collapse', function () {
         btnTextSpan.textContent = "Desplegar la tabla";
+    });
+}
+
+async function searchUsers() {
+    if (currentModule !== "usuarios") {
+        return;
+    }
+
+    const searchType = userSearchType.value;
+    const searchValue = userSearchText.value.trim();
+
+    if (!searchValue) {
+        await loadRows();
+        return;
+    }
+
+    const searchPattern = `%${searchValue}%`;
+
+    const filters = {
+        nombre: {
+            where: "(nombre LIKE ? OR apellido LIKE ? OR CONCAT(nombre, ' ', apellido) LIKE ?)",
+            values: [
+                searchPattern,
+                searchPattern,
+                searchPattern,
+            ],
+        },
+        identidad: {
+            where: "identidad LIKE ?",
+            values: [searchPattern],
+        },
+        rol: {
+            where: "rol LIKE ?",
+            values: [searchPattern],
+        },
+    };
+
+    const filter = filters[searchType];
+
+    try {
+        const [rows] = await pool.query(
+            `SELECT *
+            FROM usuarios
+            WHERE ${filter.where}
+            ORDER BY id_usuario DESC`,
+            filter.values
+        );
+
+        currentRows = rows;
+        renderTable(rows);
+    } catch (error) {
+        showMessage(
+            appMessage,
+            `Error al buscar usuarios: ${error.message}`,
+            "error"
+        );
+    }
+}
+
+async function clearUserSearch() {
+    userSearchText.value = "";
+    await loadRows();
+}
+
+// Función para inyectar o remover el buscador exclusivo de Medicamentos
+function handleMedicinesSearchModule(moduleName) {
+    const crudSection = document.getElementById('crudSection');
+    if (!crudSection) return;
+
+    // Buscamos si ya existe el contenedor de búsqueda previo en la vista
+    let existingSearchCard = document.getElementById('medicinesSearchCard');
+
+    if (moduleName === 'medicamentos') {
+        // Si no existe, lo creamos justo antes del formulario o de la tabla
+        if (!existingSearchCard) {
+            const searchCardHTML = `
+                <div id="medicinesSearchCard" class="card workspace-card mb-4">
+                    <div class="card-header bg-white">
+                        <h3 class="h5 mb-0">Buscar Medicamento</h3>
+                    </div>
+                    <div class="card-body">
+                        <div class="row g-3 align-items-center">
+                            <div class="col-md-3">
+                                <label for="searchType" class="form-label fw-semibold">Buscar por:</label>
+                                <select id="searchType" class="form-select">
+                                    <option value="nombre">Nombre</option>
+                                    <option value="codigo">Código</option>
+                                </select>
+                            </div>
+                            <div class="col-md-6">
+                                <label for="searchInput" class="form-label fw-semibold">Término de búsqueda</label>
+                                <input 
+                                    type="text" 
+                                    id="searchInput" 
+                                    class="form-control" 
+                                    placeholder="Escribe aquí para buscar..."
+                                >
+                            </div>
+                            <div class="col-md-3 d-flex align-items-end">
+                                <button id="searchBtn" class="btn btn-success w-100 py-2 mt-2 mt-md-0" type="button">
+                                    Buscar
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            // Insertamos la tarjeta de búsqueda antes del formulario dinámico o del primer elemento del crudSection
+            const firstChild = crudSection.querySelector('.d-flex.flex-wrap.gap-2.mb-3') || crudSection.children[1];
+            if (firstChild) {
+                firstChild.insertAdjacentHTML('beforebegin', searchCardHTML);
+            } else {
+                crudSection.insertAdjacentHTML('afterbegin', searchCardHTML);
+            }
+
+            // Activamos la funcionalidad del botón de búsqueda
+            activateSearchLogic();
+        }
+    } else {
+        // Si estamos en cualquier otro módulo, eliminamos la tarjeta de búsqueda si llegara a estar visible
+        if (existingSearchCard) {
+            existingSearchCard.remove();
+        }
+    }
+}
+
+// Lógica interna para que el botón filtre los datos
+function activateSearchLogic() {
+    const searchBtn = document.getElementById('searchBtn');
+    const searchInput = document.getElementById('searchInput');
+    const searchType = document.getElementById('searchType');
+
+    if (!searchBtn || !searchInput || !searchType) return;
+
+    searchBtn.addEventListener('click', function() {
+        const criterio = searchType.value; // 'nombre' o 'codigo'
+        const valorBusqueda = searchInput.value.trim().toLowerCase();
+
+        if (window.tableData && Array.isArray(window.tableData)) {
+            const resultadosFiltrados = window.tableData.filter(item => {
+                const campoAValuar = String(item[criterio] || '').toLowerCase();
+                return campoAValuar.includes(valorBusqueda);
+            });
+
+            // Llama a tu función existente que pinta la tabla en pantalla
+            if (typeof renderTableRecords === 'function') {
+                renderTableRecords(resultadosFiltrados);
+            }
+        }
     });
 }
