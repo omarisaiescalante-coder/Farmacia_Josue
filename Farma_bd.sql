@@ -7,7 +7,6 @@ use Farmacia_bd;
 create table clientes(
 
 id_cliente INT AUTO_INCREMENT PRIMARY KEY,
-codigo_cliente VARCHAR(20) UNIQUE NOT NULL,
 nombre VARCHAR(100) NOT NULL,
 apellido VARCHAR(100) NOT NULL,
 identidad VARCHAR(20) NOT NULL UNIQUE,
@@ -109,7 +108,6 @@ clinica_hospital VARCHAR(150),
 fecha_emision DATE NOT NULL,
 fecha_vencimiento DATE,
 diagnostico VARCHAR(255),
-imagen_receta VARCHAR(255),
 observaciones TEXT,
 estado ENUM('Pendiente','Utilizada','Vencida','Cancelada') DEFAULT 'Pendiente',
 fecha_registro DATETIME DEFAULT CURRENT_TIMESTAMP,
@@ -182,13 +180,13 @@ USE Farmacia_bd;
 -- =========================================================
 
 INSERT INTO clientes
-(id_cliente, codigo_cliente, nombre, apellido, identidad, telefono, correo, direccion, fecha_nacimiento, puntos_acumulados, estado)
+(id_cliente, nombre, apellido, identidad, telefono, correo, direccion, fecha_nacimiento, puntos_acumulados, estado)
 VALUES
-(1, 'CLI001', 'Carlos', 'Martinez', '0801-1995-00123', '9991-2345', 'carlos.martinez@gmail.com', 'Barrio El Centro, Danli', '1995-04-12', 25, 'Activo'),
-(2, 'CLI002', 'Maria', 'Lopez', '0703-1998-00456', '9876-5432', 'maria.lopez@gmail.com', 'Colonia Las Acacias, Danli', '1998-08-25', 40, 'Activo'),
-(3, 'CLI003', 'Jose', 'Hernandez', '0708-1989-00789', '9755-1122', 'jose.hernandez@gmail.com', 'Barrio Abajo, Teupasenti', '1989-11-03', 15, 'Activo'),
-(4, 'CLI004', 'Ana', 'Rodriguez', '0801-2000-00321', '9644-7788', 'ana.rodriguez@gmail.com', 'Colonia Kennedy, Tegucigalpa', '2000-02-17', 10, 'Activo'),
-(5, 'CLI005', 'Luis', 'Gomez', '0703-1992-00654', '9533-9900', 'luis.gomez@gmail.com', 'Barrio La Reforma, Danli', '1992-06-30', 0, 'Inactivo');
+(1, 'Carlos', 'Martinez', '0801-1995-00123', '9991-2345', 'carlos.martinez@gmail.com', 'Barrio El Centro, Danli', '1995-04-12', 25, 'Activo'),
+(2, 'Maria', 'Lopez', '0703-1998-00456', '9876-5432', 'maria.lopez@gmail.com', 'Colonia Las Acacias, Danli', '1998-08-25', 40, 'Activo'),
+(3, 'Jose', 'Hernandez', '0708-1989-00789', '9755-1122', 'jose.hernandez@gmail.com', 'Barrio Abajo, Teupasenti', '1989-11-03', 15, 'Activo'),
+(4, 'Ana', 'Rodriguez', '0801-2000-00321', '9644-7788', 'ana.rodriguez@gmail.com', 'Colonia Kennedy, Tegucigalpa', '2000-02-17', 10, 'Activo'),
+(5, 'Luis', 'Gomez', '0703-1992-00654', '9533-9900', 'luis.gomez@gmail.com', 'Barrio La Reforma, Danli', '1992-06-30', 0, 'Inactivo');
 
 
 -- =========================================================
@@ -253,13 +251,13 @@ VALUES
 -- =========================================================
 
 INSERT INTO Recetas
-(id_receta, codigo_receta, id_cliente, nombre_medico, numero_colegiacion, clinica_hospital, fecha_emision, fecha_vencimiento, diagnostico, imagen_receta, observaciones, estado)
+(id_receta, codigo_receta, id_cliente, nombre_medico, numero_colegiacion, clinica_hospital, fecha_emision, fecha_vencimiento, diagnostico, observaciones, estado)
 VALUES
-(1, 'REC-001', 1, 'Dr. Roberto Mejia', 'COL-15432', 'Hospital Gabriela Alvarado', '2026-07-01', '2026-07-31', 'Infeccion respiratoria', 'receta_001.jpg', 'Cumplir el tratamiento completo', 'Utilizada'),
-(2, 'REC-002', 2, 'Dra. Patricia Flores', 'COL-18654', 'Clinica San Rafael', '2026-07-03', '2026-08-03', 'Hipertension arterial', 'receta_002.jpg', 'Controlar la presion diariamente', 'Pendiente'),
-(3, 'REC-003', 3, 'Dr. Manuel Castro', 'COL-16789', 'Centro Medico Danli', '2026-07-05', '2026-08-05', 'Diabetes tipo 2', 'receta_003.jpg', 'Tomar despues de las comidas', 'Utilizada'),
-(4, 'REC-004', 4, 'Dra. Elena Martinez', 'COL-20115', 'Hospital Escuela', '2026-06-01', '2026-06-30', 'Alergia severa', 'receta_004.jpg', 'Suspender en caso de reaccion adversa', 'Vencida'),
-(5, 'REC-005', 5, 'Dr. Carlos Zelaya', 'COL-17540', 'Clinica El Buen Samaritano', '2026-07-10', '2026-08-10', 'Infeccion bacteriana', 'receta_005.jpg', 'Tomar abundante agua', 'Pendiente');
+(1, 'REC-001', 1, 'Dr. Roberto Mejia', 'COL-15432', 'Hospital Gabriela Alvarado', '2026-07-01', '2026-07-31', 'Infeccion respiratoria', 'Cumplir el tratamiento completo', 'Utilizada'),
+(2, 'REC-002', 2, 'Dra. Patricia Flores', 'COL-18654', 'Clinica San Rafael', '2026-07-03', '2026-08-03', 'Hipertension arterial', 'Controlar la presion diariamente', 'Pendiente'),
+(3, 'REC-003', 3, 'Dr. Manuel Castro', 'COL-16789', 'Centro Medico Danli', '2026-07-05', '2026-08-05', 'Diabetes tipo 2', 'Tomar despues de las comidas', 'Utilizada'),
+(4, 'REC-004', 4, 'Dra. Elena Martinez', 'COL-20115', 'Hospital Escuela', '2026-06-01', '2026-06-30', 'Alergia severa', 'Suspender en caso de reaccion adversa', 'Vencida'),
+(5, 'REC-005', 5, 'Dr. Carlos Zelaya', 'COL-17540', 'Clinica El Buen Samaritano', '2026-07-10', '2026-08-10', 'Infeccion bacteriana', 'Tomar abundante agua', 'Pendiente');
 
 
 -- =========================================================

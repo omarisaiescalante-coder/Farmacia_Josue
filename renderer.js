@@ -1,4 +1,4 @@
-const pool = require("./database").promise();
+const db = require("./database").promise();
 
 const modules = {
     clientes: require("./clientes"),
@@ -12,164 +12,112 @@ const modules = {
 const permissions = {
     Administrador: Object.keys(modules),
     Jefa: Object.keys(modules),
-    Cajero: [
-        "clientes",
-        "medicamentos",
-        "ventas",
-        "detalles_venta",
-        "movimientos_puntos",
-    ],
-    Farmaceutico: [
-        "clientes",
-        "medicamentos",
-        "recetas",
-        "detalle_recetas",
-        "lote",
-    ],
+    Cajero: ["clientes", "medicamentos", "ventas"],
+    Farmaceutico: ["clientes", "medicamentos", "recetas", "lote"],
 };
 
 const loginScreen = document.getElementById("loginScreen");
 const appScreen = document.getElementById("app");
 const loginForm = document.getElementById("loginForm");
-const loginMessage = document.getElementById("loginMessage");
 const loginUser = document.getElementById("loginUser");
 const loginPassword = document.getElementById("loginPassword");
 const rememberUser = document.getElementById("rememberUser");
 const showLoginPassword = document.getElementById("showLoginPassword");
+const loginMessage = document.getElementById("loginMessage");
 const sessionUser = document.getElementById("sessionUser");
-const logoutBtn = document.getElementById("logoutBtn");
-const menuOptionsGrid = document.getElementById("menuOptionsGrid");
+const menuGrid = document.getElementById("menuOptionsGrid");
 
-loadRememberedUser();
-restoreSession();
+function showError(text) {
+    loginMessage.textContent = text;
+    loginMessage.className = "alert alert-danger";
+    setTimeout(() => { loginMessage.className = "alert d-none"; }, 3500);
+}
 
-loginForm.addEventListener("submit", login);
-logoutBtn.addEventListener("click", logout);
+function showMenu(user) {
+    const normalizedRole = String(user.rol || "")
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "");
+
+    const allowed = permissions[normalizedRole];
+
+    if (!allowed) {
+        sessionStorage.removeItem("usuarioActivo");
+        appScreen.classList.add("d-none");
+        loginScreen.classList.remove("d-none");
+        showError("El rol del usuario no está configurado.");
+        return;
+    }
+
+    sessionUser.textContent = `${user.nombre} ${user.apellido} - ${user.rol}`;
+    menuGrid.replaceChildren();
+
+    allowed.forEach((name) => {
+        const module = modules[name];
+
+        if (!module) {
+            return;
+        }
+
+        const column = document.createElement("div");
+        column.className = "col-12 d-flex";
+
+        const button = document.createElement("button");
+        button.type = "button";
+        button.className = "btn btn-light border border-success-subtle shadow-sm rounded-4 p-4 w-100";
+        button.innerHTML = '<span class="d-flex align-items-center gap-3"><span class="module-icon badge bg-success rounded-3 p-3 fs-6"></span><span class="text-start"><span class="d-block h5 fw-bold mb-1 module-title"></span><span class="text-secondary module-description"></span></span></span>';
+
+        button.querySelector(".module-icon").textContent = module.title.split(" ").map((word) => word[0]).join("").slice(0, 2).toUpperCase();
+        button.querySelector(".module-title").textContent = module.title;
+        button.querySelector(".module-description").textContent = module.description;
+
+        button.addEventListener("click", () => { window.location.href = `${name}.html`; });
+
+        column.appendChild(button);
+        menuGrid.appendChild(column);
+    });
+
+    loginScreen.classList.add("d-none");
+    appScreen.classList.remove("d-none");
+}
+
+loginForm.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const username = loginUser.value.trim();
+    try {
+        const [rows] = await db.execute(
+            "SELECT id_usuario, nombre, apellido, nombre_usuario, rol FROM usuarios WHERE nombre_usuario = ? AND contrasena = ? AND estado = 'Activo' LIMIT 1",
+            [username, loginPassword.value]
+        );
+        if (!rows.length) throw new Error("Usuario o contraseña incorrectos, o usuario inactivo.");
+        const user = rows[0];
+        sessionStorage.setItem("usuarioActivo", JSON.stringify(user));
+        if (rememberUser.checked) localStorage.setItem("usuarioRecordado", username);
+        else localStorage.removeItem("usuarioRecordado");
+        loginPassword.value = "";
+        showMenu(user);
+    } catch (error) {
+        showError(error.message);
+    }
+});
+
+document.getElementById("logoutBtn").addEventListener("click", () => {
+    sessionStorage.removeItem("usuarioActivo");
+    appScreen.classList.add("d-none");
+    loginScreen.classList.remove("d-none");
+    loginForm.reset();
+    loadRememberedUser();
+});
 
 showLoginPassword.addEventListener("change", () => {
     loginPassword.type = showLoginPassword.checked ? "text" : "password";
 });
 
-menuOptionsGrid.addEventListener("click", (event) => {
-    const option = event.target.closest("[data-menu-option]");
-
-    if (option) {
-        window.location.href = `${option.dataset.menuOption}.html`;
-    }
-});
-
-async function login(event) {
-    event.preventDefault();
-
-    try {
-        const [rows] = await pool.query(
-            `SELECT *
-             FROM usuarios
-             WHERE nombre_usuario = ?
-               AND contrasena = ?
-               AND estado = 'Activo'
-             LIMIT 1`,
-            [loginUser.value.trim(), loginPassword.value]
-        );
-
-        if (!rows.length) {
-            showMessage("Usuario o contraseña incorrectos, o usuario inactivo.");
-            return;
-        }
-
-        if (rememberUser.checked) {
-            localStorage.setItem("usuarioRecordado", loginUser.value.trim());
-        } else {
-            localStorage.removeItem("usuarioRecordado");
-        }
-
-        sessionStorage.setItem("usuarioActivo", JSON.stringify(rows[0]));
-        openPanel(rows[0]);
-        loginPassword.value = "";
-    } catch (error) {
-        showMessage(`Error al iniciar sesión: ${error.message}`);
-    }
-}
-
-function restoreSession() {
-    const user = JSON.parse(
-        sessionStorage.getItem("usuarioActivo") || "null"
-    );
-
-    if (user) {
-        openPanel(user);
-    }
-}
-
-function openPanel(user) {
-    loginScreen.classList.add("d-none");
-    appScreen.classList.remove("d-none");
-    sessionUser.textContent = `${user.nombre} ${user.apellido} - ${user.rol}`;
-    renderMenu(user.rol);
-}
-
-function renderMenu(role) {
-    const allowedModules = permissions[role] || [];
-
-    menuOptionsGrid.innerHTML = allowedModules
-        .filter((key) => modules[key])
-        .map((key) => {
-            const module = modules[key];
-            const initials = module.title
-                .split(" ")
-                .map((word) => word[0])
-                .join("")
-                .slice(0, 2)
-                .toUpperCase();
-
-            return `
-                <div class="col-12 d-flex">
-                    <button
-                        class="module-card w-100"
-                        type="button"
-                        data-menu-option="${key}"
-                    >
-                        <span class="module-icon">${escapeHtml(initials)}</span>
-                        <span class="text-start flex-grow-1">
-                            <span class="d-block h5 fw-bold mb-1">
-                                ${escapeHtml(module.title)}
-                            </span>
-                            <span class="d-block small text-secondary fw-normal">
-                                ${escapeHtml(module.description)}
-                            </span>
-                        </span>
-                    </button>
-                </div>
-            `;
-        })
-        .join("");
-}
-
-function logout() {
-    sessionStorage.removeItem("usuarioActivo");
-    appScreen.classList.add("d-none");
-    loginScreen.classList.remove("d-none");
-    loginForm.reset();
-    loginPassword.type = "password";
-    loadRememberedUser();
-}
-
 function loadRememberedUser() {
-    const savedUser = localStorage.getItem("usuarioRecordado");
-    loginUser.value = savedUser || "";
-    rememberUser.checked = Boolean(savedUser);
+    const saved = localStorage.getItem("usuarioRecordado");
+    loginUser.value = saved || "";
+    rememberUser.checked = Boolean(saved);
 }
 
-function showMessage(text) {
-    loginMessage.textContent = text;
-    loginMessage.className = "alert alert-danger";
-}
-
-function escapeHtml(value) {
-    return String(value)
-        .replaceAll("&", "&amp;")
-        .replaceAll("<", "&lt;")
-        .replaceAll(">", "&gt;")
-        .replaceAll('"', "&quot;")
-        .replaceAll("'", "&#039;");
-}
+const savedSession = JSON.parse(sessionStorage.getItem("usuarioActivo") || "null");
+if (savedSession) showMenu(savedSession);
+else loadRememberedUser();

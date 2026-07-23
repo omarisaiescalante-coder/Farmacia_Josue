@@ -18,13 +18,14 @@ const connection = mysql.createPool({         //creamos conexion a la base de da
 
 connection.getConnection(function(error, connection) {
     //abrimos la conexion a la base de datos
-    if (error) {                                           //si ocurre un error, se muestra en consola
+    if (error) {
         console.log("Error al conectar MySQL: ", error);
         return;
     }
-    //Si todo funciona correctamente, se muestra un mensaje en consola
     console.log("Conexión exitosa");
+    connection.release();
 });
 
 module.exports = connection;
 //Exportar la conexión para poder usarla en otros archivos
+

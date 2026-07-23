@@ -4,13 +4,13 @@ module.exports = {
     table: "detalle_recetas",
     id: "id_detalle_receta",
     fields: [
-        { name: "id_receta", label: "ID receta", type: "number", required: true },
-        { name: "id_medicamento", label: "ID medicamento", type: "number", required: true },
-        { name: "cantidad_recetada", label: "Cantidad recetada", type: "number", required: true },
+        { name: "id_receta", label: "ID receta", type: "number", min: 1, required: true },
+        { name: "id_medicamento", label: "ID medicamento", type: "number", min: 1, required: true },
+        { name: "cantidad_recetada", label: "Cantidad recetada", type: "number", min: 1, required: true },
         { name: "dosis", label: "Dosis" },
         { name: "frecuencia", label: "Frecuencia" },
         { name: "duracion_tratamiento", label: "Duracion tratamiento" },
         { name: "indicaciones", label: "Indicaciones", type: "textarea", full: true },
-        { name: "cantidad_dispensada", label: "Cantidad dispensada", type: "number" }
+        { name: "cantidad_dispensada", label: "Cantidad dispensada", type: "number", min: 0 }
     ]
 };

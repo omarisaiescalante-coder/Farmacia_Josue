@@ -4,7 +4,6 @@ module.exports = {
     table: "clientes",
     id: "id_cliente",
     fields: [
-        { name: "codigo_cliente", label: "Código Cliente", required: true },
         { name: "nombre", label: "Nombre", required: true },
         { name: "apellido", label: "Apellido", required: true },
         { name: "identidad", label: "Identidad", required: true },
@@ -12,7 +11,7 @@ module.exports = {
         { name: "correo", label: "Correo", type: "email" },
         { name: "direccion", label: "Dirección", wide: true },
         { name: "fecha_nacimiento", label: "Fecha Nacimiento", type: "date", required: true },
-        { name: "puntos_acumulados", label: "Puntos Acumulados", type: "number" },
+        { name: "puntos_acumulados", label: "Puntos Acumulados", type: "number", min: 0 },
         { name: "estado", label: "Estado", type: "select", options: ["Activo", "Inactivo"] }
     ]
 };
