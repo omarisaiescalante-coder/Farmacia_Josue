@@ -55,6 +55,14 @@ const showLoginPassword = document.getElementById(
 );
 
 /* =========================================================
+   CODIGO PARA LA BUSQUEDA DE MEDICAMENTOS
+========================================================= */
+const medicinesSearchSection = document.getElementById("medicinesSearchSection");
+const medicinesSearchType = document.getElementById("medicinesSearchType");
+const medicinesSearchText = document.getElementById("medicinesSearchText");
+const medicinesSearchBtn = document.getElementById("medicinesSearchBtn");
+const medicinesSearchClearBtn = document.getElementById("medicinesSearchClearBtn");
+/* =========================================================
    INICIALIZACIÓN
 ========================================================= */
 
@@ -84,6 +92,18 @@ showLoginPassword.addEventListener("change", () => {
     loginPassword.type = showLoginPassword.checked
         ? "text"
         : "password";
+});
+
+//=========================================================
+ //PARA LA BUSQUEDA DE MEDICAMENTOS
+//=========================================================
+medicinesSearchBtn.addEventListener("click", searchMedicines);
+medicinesSearchClearBtn.addEventListener("click", clearMedicinesSearch);
+medicinesSearchText.addEventListener("keydown", (event) => {
+    if (event.key === "Enter") {
+        event.preventDefault();
+        searchMedicines();
+    }
 });
 
 /*
@@ -346,7 +366,9 @@ async function changeModule(moduleName) {
        moduleDescription.textContent =
         config.description;
 
+
     renderSearchSection();
+    renderMedicinesSearchSection();
     renderForm();
 
     await loadRows();
@@ -1005,91 +1027,47 @@ async function clearUserSearch() {
     await loadRows();
 }
 
-// Función para inyectar o remover el buscador exclusivo de Medicamentos
-function handleMedicinesSearchModule(moduleName) {
-    const crudSection = document.getElementById('crudSection');
-    if (!crudSection) return;
+/* =========================================================
+   control de visibilidad y la lógica de búsqueda
+   DE MEDICAMENTOS
+========================================================= */
 
-    // Buscamos si ya existe el contenedor de búsqueda previo en la vista
-    let existingSearchCard = document.getElementById('medicinesSearchCard');
+function renderMedicinesSearchSection() {
+    const isMedicinesModule = currentModule === "medicamentos";
 
-    if (moduleName === 'medicamentos') {
-        // Si no existe, lo creamos justo antes del formulario o de la tabla
-        if (!existingSearchCard) {
-            const searchCardHTML = `
-                <div id="medicinesSearchCard" class="card workspace-card mb-4">
-                    <div class="card-header bg-white">
-                        <h3 class="h5 mb-0">Buscar Medicamento</h3>
-                    </div>
-                    <div class="card-body">
-                        <div class="row g-3 align-items-center">
-                            <div class="col-md-3">
-                                <label for="searchType" class="form-label fw-semibold">Buscar por:</label>
-                                <select id="searchType" class="form-select">
-                                    <option value="nombre">Nombre</option>
-                                    <option value="codigo">Código</option>
-                                </select>
-                            </div>
-                            <div class="col-md-6">
-                                <label for="searchInput" class="form-label fw-semibold">Término de búsqueda</label>
-                                <input 
-                                    type="text" 
-                                    id="searchInput" 
-                                    class="form-control" 
-                                    placeholder="Escribe aquí para buscar..."
-                                >
-                            </div>
-                            <div class="col-md-3 d-flex align-items-end">
-                                <button id="searchBtn" class="btn btn-success w-100 py-2 mt-2 mt-md-0" type="button">
-                                    Buscar
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            `;
-            
-            // Insertamos la tarjeta de búsqueda antes del formulario dinámico o del primer elemento del crudSection
-            const firstChild = crudSection.querySelector('.d-flex.flex-wrap.gap-2.mb-3') || crudSection.children[1];
-            if (firstChild) {
-                firstChild.insertAdjacentHTML('beforebegin', searchCardHTML);
-            } else {
-                crudSection.insertAdjacentHTML('afterbegin', searchCardHTML);
-            }
+    medicinesSearchSection.classList.toggle(
+        "d-none",
+        !isMedicinesModule
+    );
 
-            // Activamos la funcionalidad del botón de búsqueda
-            activateSearchLogic();
-        }
-    } else {
-        // Si estamos en cualquier otro módulo, eliminamos la tarjeta de búsqueda si llegara a estar visible
-        if (existingSearchCard) {
-            existingSearchCard.remove();
-        }
+    if (!isMedicinesModule) {
+        medicinesSearchText.value = "";
     }
 }
 
-// Lógica interna para que el botón filtre los datos
-function activateSearchLogic() {
-    const searchBtn = document.getElementById('searchBtn');
-    const searchInput = document.getElementById('searchInput');
-    const searchType = document.getElementById('searchType');
+function searchMedicines() {
+    if (currentModule !== "medicamentos") return;
 
-    if (!searchBtn || !searchInput || !searchType) return;
+    const criterio = medicinesSearchType.value; // 'nombre' o 'codigo'
+    const valorBusqueda = medicinesSearchText.value.trim().toLowerCase();
 
-    searchBtn.addEventListener('click', function() {
-        const criterio = searchType.value; // 'nombre' o 'codigo'
-        const valorBusqueda = searchInput.value.trim().toLowerCase();
+    if (!valorBusqueda) {
+        loadRows();
+        return;
+    }
 
-        if (window.tableData && Array.isArray(window.tableData)) {
-            const resultadosFiltrados = window.tableData.filter(item => {
-                const campoAValuar = String(item[criterio] || '').toLowerCase();
-                return campoAValuar.includes(valorBusqueda);
-            });
+    if (currentRows && Array.isArray(currentRows)) {
+        const resultadosFiltrados = currentRows.filter(item => {
+            const campoAValuar = String(item[criterio] || '').toLowerCase();
+            return campoAValuar.includes(valorBusqueda);
+        });
 
-            // Llama a tu función existente que pinta la tabla en pantalla
-            if (typeof renderTableRecords === 'function') {
-                renderTableRecords(resultadosFiltrados);
-            }
-        }
-    });
+        renderTable(resultadosFiltrados);
+    }
 }
+
+async function clearMedicinesSearch() {
+    medicinesSearchText.value = "";
+    await loadRows();
+}
+
