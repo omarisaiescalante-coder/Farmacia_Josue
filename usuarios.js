@@ -11,8 +11,15 @@ module.exports = {
         { name: "correo", label: "Correo", type: "email" },
         { name: "direccion", label: "Dirección", wide: true, required: true },
         { name: "nombre_usuario", label: "Nombre de Usuario", required: true },
-        { name: "contrasena", label: "Contraseña", type: "password", required: true },
-        { name: "rol", label: "Rol", type: "select", options: ["Administrador", "Cajero", "Farmacéutico"], required: true },
+        {
+            name: "contrasena",
+            label: "Contraseña",
+            type: "password",
+            minlength: 8,
+            passwordRule: true,
+            required: true
+        },
+        { name: "rol", label: "Rol", type: "select", options: ["Administrador", "Jefa", "Cajero", "Farmaceutico"], required: true },
         { name: "estado", label: "Estado", type: "select", options: ["Activo", "Inactivo"] }
     ]
 };
