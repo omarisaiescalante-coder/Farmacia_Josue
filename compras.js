@@ -7,6 +7,8 @@ module.exports = {
         {
             name: "numero_factura",
             label: "Número de factura",
+            autoInvoice: true,
+            hidden: true,
             required: true
         },
         {
@@ -28,20 +30,21 @@ module.exports = {
         },
         {
             name: "telefono_distribuidor",
-            label: "Teléfono del distribuidor nuevo",
-            virtual: true
+            label: "Teléfono del distribuidor",
+            virtual: true,
+            required: true
         },
         {
             name: "correo_distribuidor",
-            label: "Correo del distribuidor nuevo",
+            label: "Correo del distribuidor",
             type: "email",
-            virtual: true
+            virtual: true,
+            required: true
         },
         {
             name: "id_medicamento",
-            label: "ID del medicamento",
-            type: "number",
-            min: 1,
+            label: "Descripción de medicamentos comprados",
+            type: "textarea",
             required: true
         },
         {

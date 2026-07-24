@@ -327,6 +327,11 @@ VALUES
 (3, 'Distribuidora MK', 'Activo'),
 (4, 'Farmacéutica Calox', 'Activo');
 
+UPDATE Distribuidores SET telefono = '98265822', correo = 'LaboratoriosFinlay@gmail.com', direccion = 'Calle Principal' WHERE id_distribuidor = 1;
+UPDATE Distribuidores SET telefono = '98154181', correo = 'DistribuidoraBayer@gmail.com', direccion = 'Avenida Central' WHERE id_distribuidor = 2;
+UPDATE Distribuidores SET telefono = '32548545', correo = 'DistribuidoraMK@gmail.com', direccion = 'Boulevard Sur' WHERE id_distribuidor = 3;
+UPDATE Distribuidores SET telefono = '29154815', correo = 'FarmacéuticaCalox@gmail.com', direccion = 'Calle Norte' WHERE id_distribuidor = 4;
+
 INSERT INTO Compras
 (id_compra, numero_factura, id_usuario, id_medicamento, id_distribuidor, fecha_compra, cantidad, precio_unitario, total, metodo_pago, estado)
 VALUES

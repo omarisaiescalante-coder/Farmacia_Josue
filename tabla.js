@@ -390,6 +390,12 @@ function renderForm() {
             input.type = "text";
             input.className = "form-control";
             input.placeholder = "Escriba el DNI del cliente";
+        } else if (field.type === "distributor-name") {
+            input = document.createElement("input");
+            input.type = "text";
+            input.className = "form-control";
+            input.setAttribute("autocomplete", "off");
+            input.placeholder = "Escriba o busque el laboratorio";
         } else if (field.type === "textarea") {
             input = document.createElement("textarea");
             input.className = "form-control";
@@ -444,6 +450,13 @@ function renderForm() {
             input.readOnly = true;
             input.classList.add("bg-light");
         }
+        if (field.type === "distributor-name") {
+            group.classList.add("position-relative");
+            const suggestionsDiv = document.createElement("div");
+            suggestionsDiv.id = "distributorSuggestions";
+            suggestionsDiv.className = "list-group position-absolute start-0 end-0 mx-3 shadow z-3 d-none";
+            group.appendChild(suggestionsDiv);
+        }
 
         group.append(label, input);
         form.appendChild(group);
@@ -458,8 +471,10 @@ function renderForm() {
 
     if (moduleName === "compras") {
         configurePurchaseTotal();
+        configureDistributorAutocomplete();
     }
 }
+
 
 function configurePurchaseTotal() {
     const quantity = document.getElementById("cantidad");
@@ -2203,4 +2218,93 @@ function clearForm() {
         loadSaleMedicineCatalog();
         loadNextInvoiceNumber();
     }
+}
+
+/* ====================================================================================
+Configuración para el autocompletado y autorrelleno de distribuidores en Compras 
+====================================================================================*/
+function configureDistributorAutocomplete() {
+    const distributorInput = document.getElementById("id_distribuidor");
+    if (!distributorInput) return;
+
+    const container = distributorInput.parentElement;
+    let suggestionsDiv = document.getElementById("distributorSuggestions");
+
+    if (!suggestionsDiv) {
+        suggestionsDiv = document.createElement("div");
+        suggestionsDiv.id = "distributorSuggestions";
+        suggestionsDiv.className = "list-group position-absolute start-0 end-0 mx-3 shadow z-3 d-none";
+        container.appendChild(suggestionsDiv);
+    }
+
+    distributorInput.addEventListener("input", async () => {
+        const query = distributorInput.value.trim();
+        if (query.length === 0) {
+            suggestionsDiv.classList.add("d-none");
+            return;
+        }
+
+        try {
+            const [results] = await db.execute(
+                `SELECT nombre, telefono, correo 
+                 FROM distribuidores 
+                 WHERE nombre LIKE ? 
+                 LIMIT 5`,
+                [`%${query}%`]
+            );
+
+            renderDistributorSuggestions(results, suggestionsDiv, distributorInput);
+        } catch (error) {
+            console.error("Error buscando distribuidores:", error);
+        }
+    });
+
+    distributorInput.addEventListener("focus", async () => {
+        if (distributorInput.value.trim().length > 0) {
+            const [results] = await db.execute(
+                `SELECT nombre, telefono, correo FROM distribuidores WHERE nombre LIKE ? LIMIT 5`,
+                [`%${distributorInput.value.trim()}%`]
+            );
+            renderDistributorSuggestions(results, suggestionsDiv, distributorInput);
+        }
+    });
+
+    document.addEventListener("click", (event) => {
+        if (!container.contains(event.target)) {
+            suggestionsDiv.classList.add("d-none");
+        }
+    });
+}
+
+function renderDistributorSuggestions(distributors, suggestionsDiv, inputElement) {
+    suggestionsDiv.replaceChildren();
+
+    if (!distributors.length) {
+        suggestionsDiv.classList.add("d-none");
+        return;
+    }
+
+    distributors.forEach((dist) => {
+        const item = document.createElement("button");
+        item.type = "button";
+        item.className = "list-group-item list-group-item-action bg-white text-dark";
+        item.textContent = dist.nombre;
+
+        item.addEventListener("click", () => {
+            inputElement.value = dist.nombre;
+            
+            // Autorrellenar teléfono y correo si existen los campos virtuales
+            const phoneInput = document.querySelector("[name='telefono_distribuidor']");
+            const emailInput = document.querySelector("[name='correo_distribuidor']");
+
+            if (phoneInput) phoneInput.value = dist.telefono || "";
+            if (emailInput) emailInput.value = dist.correo || "";
+
+            suggestionsDiv.classList.add("d-none");
+        });
+
+        suggestionsDiv.appendChild(item);
+    });
+
+    suggestionsDiv.classList.remove("d-none");
 }
