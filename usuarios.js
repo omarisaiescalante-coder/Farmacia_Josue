@@ -19,7 +19,7 @@ module.exports = {
             passwordRule: true,
             required: true
         },
-        { name: "rol", label: "Rol", type: "select", options: ["Administrador", "Jefa", "Cajero", "Farmaceutico"], required: true },
+        { name: "rol", label: "Rol", type: "select", options: ["Administrador", "Cajero"], required: true },
         { name: "estado", label: "Estado", type: "select", options: ["Activo", "Inactivo"] }
     ]
 };

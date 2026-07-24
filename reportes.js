@@ -7,7 +7,7 @@ const message = document.getElementById("message");
 const reportTable = document.getElementById("reportTable");
 let messageTimer = null;
 
-if (!user || !["Administrador", "Jefa"].includes(user.rol)) {
+if (!user || user.rol !== "Administrador") {
     window.alert("No tiene permiso para consultar este reporte.");
     window.location.replace("Index.html");
 } else {

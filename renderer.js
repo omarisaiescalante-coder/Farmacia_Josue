@@ -1,19 +1,17 @@
 const db = require("./database").promise();
 
 const modules = {
-    clientes: require("./clientes"),
     usuarios: require("./usuarios"),
+    clientes: require("./clientes"),
     medicamentos: require("./medicamentos"),
-    recetas: require("./recetas"),
-    lote: require("./lote"),
     ventas: require("./ventas"),
+    compras: require("./compras"),
+    lote: require("./lote"),
 };
 
 const permissions = {
     Administrador: Object.keys(modules),
-    Jefa: Object.keys(modules),
     Cajero: ["clientes", "medicamentos", "ventas"],
-    Farmaceutico: ["clientes", "medicamentos", "recetas", "lote"],
 };
 
 const loginScreen = document.getElementById("loginScreen");

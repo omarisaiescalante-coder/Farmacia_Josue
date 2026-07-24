@@ -18,7 +18,7 @@ module.exports = {
             displayName: "identidad_cliente",
             showInTable: true
         },
-        { name: "id_usuario", label: "ID Usuario", type: "number", min: 1, required: true },
+        { name: "id_usuario", label: "ID Usuario", type: "number", min: 1, required: true, currentUser: true, readOnly: true },
         {
             name: "subtotal",
             label: "Subtotal",
@@ -39,7 +39,7 @@ module.exports = {
         },
         {
             name: "impuesto",
-            label: "Impuesto",
+            label: "Impuesto (15%)",
             type: "number",
             min: 0,
             step: "0.01",

@@ -33,7 +33,7 @@ correo VARCHAR(150) UNIQUE,
 direccion VARCHAR(255),
 nombre_usuario VARCHAR(50) UNIQUE NOT NULL,
 contrasena VARCHAR(255) NOT NULL,
-rol VARCHAR(50) NOT NULL,
+rol ENUM('Administrador','Cajero') NOT NULL,
 estado ENUM('Activo','Inactivo') DEFAULT 'Activo',
 fecha_registro DATETIME DEFAULT CURRENT_TIMESTAMP
 
@@ -62,7 +62,7 @@ CREATE TABLE medicamentos (
 
 id_medicamento INT AUTO_INCREMENT PRIMARY KEY,
 codigo VARCHAR(20) UNIQUE NOT NULL,
-nombre VARCHAR(150) NOT NULL,
+nombre VARCHAR(150) UNIQUE NOT NULL,
 descripcion VARCHAR(255),
 categoria VARCHAR(100),
 presentacion VARCHAR(150),
@@ -76,6 +76,20 @@ forma_venta ENUM('Caja','Unidad','Frasco','Blister','Sobre','Ampolla') NOT NULL,
 estado ENUM('Disponible','Agotado','Inactivo') DEFAULT 'Disponible',
 fecha_registro DATETIME DEFAULT CURRENT_TIMESTAMP
         
+);
+
+-- --------------------------------------------------------------------
+
+CREATE TABLE Medicamento_presentaciones (
+
+id_presentacion INT AUTO_INCREMENT PRIMARY KEY,
+id_medicamento INT NOT NULL,
+nombre_presentacion VARCHAR(150) NOT NULL,
+precio_venta DECIMAL(10,2) NOT NULL,
+estado ENUM('Activa','Inactiva') DEFAULT 'Activa',
+UNIQUE (id_medicamento, nombre_presentacion),
+FOREIGN KEY (id_medicamento) REFERENCES medicamentos(id_medicamento)
+
 );
 
 -- --------------------------------------------------------------------
@@ -97,42 +111,47 @@ FOREIGN KEY (id_medicamento) REFERENCES medicamentos(id_medicamento)
 );
 -- -------------------------------------------------------------------
 
-CREATE TABLE Recetas(
+CREATE TABLE Distribuidores (
 
-id_receta INT AUTO_INCREMENT PRIMARY KEY,
-codigo_receta VARCHAR(30) UNIQUE NOT NULL,
-id_cliente INT NOT NULL,
-nombre_medico VARCHAR(150) NOT NULL,
-numero_colegiacion VARCHAR(50),
-clinica_hospital VARCHAR(150),
-fecha_emision DATE NOT NULL,
-fecha_vencimiento DATE,
-diagnostico VARCHAR(255),
-observaciones TEXT,
-estado ENUM('Pendiente','Utilizada','Vencida','Cancelada') DEFAULT 'Pendiente',
-fecha_registro DATETIME DEFAULT CURRENT_TIMESTAMP,
-FOREIGN KEY (id_cliente) REFERENCES clientes(id_cliente)
-    
+id_distribuidor INT AUTO_INCREMENT PRIMARY KEY,
+nombre VARCHAR(150) UNIQUE NOT NULL,
+telefono VARCHAR(20),
+correo VARCHAR(150),
+direccion VARCHAR(255),
+estado ENUM('Activo','Inactivo') DEFAULT 'Activo',
+fecha_registro DATETIME DEFAULT CURRENT_TIMESTAMP
+
 );
 
--- --------------------------------------------------------------------
-CREATE TABLE Detalle_recetas(
+-- -------------------------------------------------------------------
 
-id_detalle_receta INT AUTO_INCREMENT PRIMARY KEY,
-id_receta INT NOT NULL,
+CREATE TABLE Compras (
+
+id_compra INT AUTO_INCREMENT PRIMARY KEY,
+numero_factura VARCHAR(50) UNIQUE NOT NULL,
+id_usuario INT NOT NULL,
 id_medicamento INT NOT NULL,
-cantidad_recetada INT NOT NULL,
-dosis VARCHAR(100),
-frecuencia VARCHAR(100),
-duracion_tratamiento VARCHAR(100),
-indicaciones VARCHAR(255),
-cantidad_dispensada INT DEFAULT 0,
-FOREIGN KEY (id_receta) REFERENCES recetas(id_receta),
-FOREIGN KEY (id_medicamento) REFERENCES medicamentos(id_medicamento)
+id_distribuidor INT NOT NULL,
+fecha_compra DATE NOT NULL,
+cantidad INT NOT NULL,
+precio_unitario DECIMAL(10,2) NOT NULL,
+total DECIMAL(10,2) NOT NULL,
+metodo_pago ENUM('Efectivo','Tarjeta','Transferencia','Credito') NOT NULL,
+estado ENUM('Pendiente','Recibida','Cancelada') DEFAULT 'Pendiente',
+fecha_registro DATETIME DEFAULT CURRENT_TIMESTAMP,
+FOREIGN KEY (id_usuario) REFERENCES usuarios(id_usuario),
+FOREIGN KEY (id_medicamento) REFERENCES medicamentos(id_medicamento),
+FOREIGN KEY (id_distribuidor) REFERENCES distribuidores(id_distribuidor)
 
 );
 
--- --------------------------------------------------------------------
+-- -------------------------------------------------------------------
+
+ALTER TABLE Lote
+ADD COLUMN id_compra INT NULL,
+ADD FOREIGN KEY (id_compra) REFERENCES compras(id_compra);
+
+-- -------------------------------------------------------------------
 
 CREATE TABLE Ventas (
 
@@ -163,12 +182,15 @@ CREATE TABLE Detalles_venta (
 id_detalle_venta INT AUTO_INCREMENT PRIMARY KEY,
 id_venta INT NOT NULL,
 id_medicamento INT NOT NULL,
+id_presentacion INT,
+presentacion VARCHAR(150) NOT NULL,
 cantidad INT NOT NULL,
 precio_unitario DECIMAL(10,2) NOT NULL,
 descuento DECIMAL(10,2) DEFAULT 0.00,
 subtotal DECIMAL(10,2) NOT NULL,
 FOREIGN KEY (id_venta) REFERENCES ventas(id_venta),
-FOREIGN KEY (id_medicamento) REFERENCES medicamentos(id_medicamento)
+FOREIGN KEY (id_medicamento) REFERENCES medicamentos(id_medicamento),
+FOREIGN KEY (id_presentacion) REFERENCES medicamento_presentaciones(id_presentacion)
 
 );
 
@@ -197,10 +219,11 @@ INSERT INTO usuarios
 (id_usuario, nombre, apellido, identidad, telefono, correo, direccion, nombre_usuario, contrasena, rol, estado)
 VALUES
 (1, 'Omar', 'Escalante', '0706-2000-00085', '8886-7344', 'OmarEs@farmacia.com', 'Danli, El Paraiso', 'Omar_Adm', 'Amd1234', 'Administrador', 'Activo'),
-(2, 'Maria', 'Rivas', '0703-1999-01119', '9888-2222', 'Maria@farmacia.com', 'Barrio El Centro, Danli', 'Maria_Caj', 'Perropulgoso12_', 'Cajero', 'Activo'),
-(3, 'Loany', 'Matamoros', '0703-1996-00333', '9777-3333', 'Loany@farmacia.com', 'Colonia Las Colinas, Danli', 'Loany_Far', 'Ositoloco1@', 'Farmaceutico', 'Activo'),
-(4, 'Maryuri', 'Segura', '0703-2001-00444', '9666-4444', 'Maryu@farmacia.com', 'Barrio Abajo, Danli', 'Maryuri_Jef', 'Jefa2026-@', 'Jefa', 'Activo'),
-(5, 'Fabricio', 'Torrez', '0703-1994-00555', '9555-5555', 'Fabricio@farmacia.com', 'Teupasenti, El Paraiso', 'Fabricio_Far', 'Nohay@_7.', 'Farmaceutico', 'Inactivo');
+(2, 'Maria', 'Rivas', '0703-1999-01119', '9888-2222', 'Maria@farmacia.com', 'Barrio El Centro, Danli', 'Maria_Adm', 'Perropulgoso12_', 'Administrador', 'Activo'),
+(3, 'Loany', 'Matamoros', '0703-1996-00333', '9777-3333', 'Loany@farmacia.com', 'Colonia Las Colinas, Danli', 'Loany_Adm', 'Ositoloco1@', 'Administrador', 'Activo'),
+(4, 'Maryuri', 'Segura', '0703-2001-00444', '9666-4444', 'Maryu@farmacia.com', 'Barrio Abajo, Danli', 'Maryuri_Adm', 'Jefa2026-@', 'Administrador', 'Activo'),
+(5, 'Fabricio', 'Torrez', '0703-1994-00555', '9555-5555', 'Fabricio@farmacia.com', 'Teupasenti, El Paraiso', 'Fabricio_Adm', 'Nohay@_7.', 'Administrador', 'Activo'),
+(6, 'Josue', 'Rivera', '0703-2002-00666', '9444-6611', 'Josue@farmacia.com', 'Barrio El Centro, Danli', 'Josue_Caj', 'Cajero2026@', 'Cajero', 'Activo');
 
 
 -- =========================================================
@@ -231,6 +254,37 @@ VALUES
 (19, 'MED019', 'Vitamina C', 'Suplemento utilizado para fortalecer el sistema inmunologico', 'Vitaminas', 'Frasco de 30 tabletas de 500 mg', 55.00, 75.00, 90, 10, 'Sin Receta Medica', 'Centrum', 'Frasco', 'Disponible'),
 (20, 'MED020', 'Dexametasona', 'Corticosteroide utilizado para procesos inflamatorios y alergicos', 'Corticosteroide', 'Caja de 10 ampollas de 4 mg', 110.00, 145.00, 0, 5, 'Con Receta Medica', 'Calox', 'Ampolla', 'Agotado');
 
+INSERT INTO Medicamento_presentaciones
+(id_medicamento, nombre_presentacion, precio_venta)
+SELECT
+    id_medicamento,
+    CASE
+        WHEN LOWER(presentacion) LIKE '%tableta%'
+          OR LOWER(presentacion) LIKE '%capsula%'
+        THEN 'Caja'
+        ELSE forma_venta
+    END,
+    precio_venta
+FROM medicamentos;
+
+INSERT INTO Medicamento_presentaciones
+(id_medicamento, nombre_presentacion, precio_venta)
+VALUES
+(1, 'Unidad', 2.50), (1, 'Blister', 25.00),
+(2, 'Unidad', 3.25), (2, 'Blister', 32.50),
+(3, 'Unidad', 5.95), (3, 'Blister', 59.52),
+(4, 'Unidad', 4.20), (4, 'Blister', 42.00),
+(5, 'Unidad', 3.17), (5, 'Blister', 31.67),
+(6, 'Unidad', 50.00), (6, 'Blister', 150.00),
+(7, 'Unidad', 2.90), (7, 'Blister', 29.00),
+(8, 'Unidad', 3.50), (8, 'Blister', 35.00),
+(9, 'Unidad', 3.83), (9, 'Blister', 38.33),
+(11, 'Unidad', 4.80), (11, 'Blister', 48.00),
+(12, 'Unidad', 3.75), (12, 'Blister', 37.50),
+(13, 'Unidad', 12.00), (13, 'Blister', 120.00),
+(16, 'Unidad', 3.00), (16, 'Blister', 30.00),
+(19, 'Unidad', 2.50), (19, 'Blister', 25.00);
+
 
 -- =========================================================
 --       				LOTES
@@ -243,35 +297,43 @@ VALUES
 (2, 2, 'LOT-IB-002', 80, 78, '2026-02-10', '2028-02-10', 48.75, 'Disponible'),
 (3, 3, 'LOT-AM-003', 60, 59, '2026-03-05', '2027-09-05', 95.00, 'Disponible'),
 (4, 4, 'LOT-LO-004', 75, 72, '2026-01-20', '2028-01-20', 28.00, 'Disponible'),
-(5, 5, 'LOT-OM-005', 50, 49, '2026-04-12', '2028-04-12', 70.00, 'Disponible');
+(5, 5, 'LOT-OM-005', 50, 49, '2026-04-12', '2028-04-12', 70.00, 'Disponible'),
+(6, 6, 'LOT-AZ-006', 35, 35, '2026-05-01', '2028-05-01', 115.00, 'Disponible'),
+(7, 7, 'LOT-DI-007', 65, 65, '2026-05-02', '2028-05-02', 40.00, 'Disponible'),
+(8, 8, 'LOT-ME-008', 45, 45, '2026-05-03', '2028-05-03', 75.00, 'Disponible'),
+(9, 9, 'LOT-LO-009', 55, 55, '2026-05-04', '2028-05-04', 85.00, 'Disponible'),
+(10, 10, 'LOT-SA-010', 30, 30, '2026-05-05', '2028-05-05', 125.00, 'Disponible'),
+(11, 11, 'LOT-CE-011', 70, 70, '2026-05-06', '2028-05-06', 32.00, 'Disponible'),
+(12, 12, 'LOT-NA-012', 65, 65, '2026-05-07', '2028-05-07', 55.00, 'Disponible'),
+(13, 13, 'LOT-CI-013', 40, 40, '2026-05-08', '2028-05-08', 90.00, 'Disponible'),
+(14, 14, 'LOT-CL-014', 50, 50, '2026-05-09', '2028-05-09', 45.00, 'Disponible'),
+(15, 15, 'LOT-AM-015', 45, 45, '2026-05-10', '2028-05-10', 50.00, 'Disponible'),
+(16, 16, 'LOT-EN-016', 50, 50, '2026-05-11', '2028-05-11', 65.00, 'Disponible'),
+(17, 17, 'LOT-IN-017', 20, 20, '2026-05-12', '2028-05-12', 480.00, 'Disponible'),
+(18, 18, 'LOT-SU-018', 150, 150, '2026-05-13', '2028-05-13', 8.00, 'Disponible'),
+(19, 19, 'LOT-VI-019', 90, 90, '2026-05-14', '2028-05-14', 55.00, 'Disponible'),
+(20, 20, 'LOT-DE-020', 0, 0, '2026-05-15', '2028-05-15', 110.00, 'Agotado');
 
 
 -- =========================================================
--- 						RECETAS
+--                     COMPRAS
 -- =========================================================
 
-INSERT INTO Recetas
-(id_receta, codigo_receta, id_cliente, nombre_medico, numero_colegiacion, clinica_hospital, fecha_emision, fecha_vencimiento, diagnostico, observaciones, estado)
+INSERT INTO Distribuidores
+(id_distribuidor, nombre, estado)
 VALUES
-(1, 'REC-001', 1, 'Dr. Roberto Mejia', 'COL-15432', 'Hospital Gabriela Alvarado', '2026-07-01', '2026-07-31', 'Infeccion respiratoria', 'Cumplir el tratamiento completo', 'Utilizada'),
-(2, 'REC-002', 2, 'Dra. Patricia Flores', 'COL-18654', 'Clinica San Rafael', '2026-07-03', '2026-08-03', 'Hipertension arterial', 'Controlar la presion diariamente', 'Pendiente'),
-(3, 'REC-003', 3, 'Dr. Manuel Castro', 'COL-16789', 'Centro Medico Danli', '2026-07-05', '2026-08-05', 'Diabetes tipo 2', 'Tomar despues de las comidas', 'Utilizada'),
-(4, 'REC-004', 4, 'Dra. Elena Martinez', 'COL-20115', 'Hospital Escuela', '2026-06-01', '2026-06-30', 'Alergia severa', 'Suspender en caso de reaccion adversa', 'Vencida'),
-(5, 'REC-005', 5, 'Dr. Carlos Zelaya', 'COL-17540', 'Clinica El Buen Samaritano', '2026-07-10', '2026-08-10', 'Infeccion bacteriana', 'Tomar abundante agua', 'Pendiente');
+(1, 'Laboratorios Finlay', 'Activo'),
+(2, 'Distribuidora Bayer', 'Activo'),
+(3, 'Distribuidora MK', 'Activo'),
+(4, 'Farmacéutica Calox', 'Activo');
 
-
--- =========================================================
---              	 DETALLES DE RECETAS
--- =========================================================
-
-INSERT INTO Detalle_recetas
-(id_detalle_receta, id_receta, id_medicamento, cantidad_recetada, dosis, frecuencia, duracion_tratamiento, indicaciones, cantidad_dispensada)
+INSERT INTO Compras
+(id_compra, numero_factura, id_usuario, id_medicamento, id_distribuidor, fecha_compra, cantidad, precio_unitario, total, metodo_pago, estado)
 VALUES
-(1, 1, 3, 1, '500 mg', 'Cada 8 horas', '7 dias', 'Tomar despues de cada comida', 1),
-(2, 2, 9, 1, '50 mg', 'Una vez al dia', '30 dias', 'Tomar por la mañana', 0),
-(3, 3, 8, 1, '850 mg', 'Cada 12 horas', '30 dias', 'Tomar con alimentos', 1),
-(4, 4, 4, 2, '10 mg', 'Una vez al dia', '10 dias', 'Tomar preferiblemente por la noche', 0),
-(5, 5, 6, 1, '500 mg', 'Una vez al dia', '3 dias', 'No interrumpir el tratamiento', 0);
+(1, 'COM-0001', 1, 1, 1, '2026-07-15', 100, 35.50, 3550.00, 'Transferencia', 'Recibida'),
+(2, 'COM-0002', 4, 2, 2, '2026-07-16', 80, 48.75, 3900.00, 'Credito', 'Recibida'),
+(3, 'COM-0003', 3, 3, 3, '2026-07-18', 60, 95.00, 5700.00, 'Transferencia', 'Pendiente'),
+(4, 'COM-0004', 1, 4, 4, '2026-07-20', 75, 28.00, 2100.00, 'Efectivo', 'Recibida');
 
 
 -- =========================================================
@@ -293,13 +355,13 @@ VALUES
 -- =========================================================
 
 INSERT INTO Detalles_venta
-(id_detalle_venta, id_venta, id_medicamento, cantidad, precio_unitario, descuento, subtotal)
+(id_detalle_venta, id_venta, id_medicamento, id_presentacion, presentacion, cantidad, precio_unitario, descuento, subtotal)
 VALUES
-(1, 1, 1, 2, 50.00, 0.00, 100.00),
-(2, 2, 2, 2, 65.00, 0.00, 130.00),
-(3, 3, 3, 1, 125.00, 0.00, 125.00),
-(4, 4, 4, 3, 42.00, 0.00, 126.00),
-(5, 5, 5, 1, 95.00, 0.00, 95.00);
+(1, 1, 1, 1, 'Caja - Caja de 20 tabletas de 500 mg', 2, 50.00, 0.00, 100.00),
+(2, 2, 2, 2, 'Caja - Caja de 20 tabletas de 400 mg', 2, 65.00, 0.00, 130.00),
+(3, 3, 3, 3, 'Caja - Caja de 21 capsulas de 500 mg', 1, 125.00, 0.00, 125.00),
+(4, 4, 4, 4, 'Caja - Caja de 10 tabletas de 10 mg', 3, 42.00, 0.00, 126.00),
+(5, 5, 5, 5, 'Caja - Caja de 30 capsulas de 20 mg', 1, 95.00, 0.00, 95.00);
 
 
 -- =========================================================

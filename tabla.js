@@ -3,10 +3,8 @@ const db = require("./database").promise();
 const moduleName = document.body.dataset.module;
 const config = require(`./${moduleName}.js`);
 const permissions = {
-    Administrador: ["clientes", "usuarios", "medicamentos", "recetas", "detalle_recetas", "lote", "ventas", "detalles_venta", "movimientos_puntos"],
-    Jefa: ["clientes", "usuarios", "medicamentos", "recetas", "detalle_recetas", "lote", "ventas", "detalles_venta", "movimientos_puntos"],
+    Administrador: ["usuarios", "clientes", "medicamentos", "ventas", "compras", "lote", "detalles_venta", "movimientos_puntos"],
     Cajero: ["clientes", "medicamentos", "ventas", "detalles_venta", "movimientos_puntos"],
-    Farmaceutico: ["clientes", "medicamentos", "recetas", "detalle_recetas", "lote"],
 };
 
 let editingId = null;
@@ -14,7 +12,12 @@ let rows = [];
 let dniSearchTimer = null;
 let saleItems = [];
 let medicineCatalog = [];
+let selectedSaleMedicineId = null;
+const SALES_TAX_RATE = 0.15;
 const user = JSON.parse(sessionStorage.getItem("usuarioActivo") || "null");
+const isReadOnlyMedicine =
+    user?.rol === "Cajero" && moduleName === "medicamentos";
+const isImmutablePurchase = moduleName === "compras";
 const form = document.getElementById("recordForm");
 const tableContainer = document.getElementById("tableContainer");
 const message = document.getElementById("message");
@@ -43,7 +46,7 @@ const tableActions = document.createElement("div");
 tableActions.className = "d-flex flex-wrap gap-2";
 
 if (
-    ["Administrador", "Jefa"].includes(user?.rol) &&
+    user?.rol === "Administrador" &&
     ["medicamentos", "ventas"].includes(moduleName)
 ) {
     const reportButton = document.createElement("button");
@@ -100,10 +103,6 @@ function createSearchSection() {
             ["nombre", "Nombre"],
             ["codigo", "Código"],
         ],
-        recetas: [
-            ["codigo_receta", "Código de receta"],
-            ["identidad_cliente", "Identidad del cliente"],
-        ],
     };
 
     const options = searchOptions[moduleName];
@@ -122,7 +121,6 @@ function createSearchSection() {
         clientes: "Buscar clientes",
         usuarios: "Buscar usuarios",
         medicamentos: "Buscar medicamentos",
-        recetas: "Buscar recetas",
     };
 
     searchTitle.textContent = searchTitles[moduleName];
@@ -141,7 +139,6 @@ function createSearchSection() {
         clientes: "Buscar por nombre o identidad",
         usuarios: "Buscar por nombre o DNI",
         medicamentos: "Buscar por nombre o código",
-        recetas: "Buscar por código de receta o identidad",
     };
 
     textLabel.textContent = searchLabels[moduleName];
@@ -154,7 +151,6 @@ function createSearchSection() {
         clientes: "Escriba el cliente que desea buscar",
         usuarios: "Escriba el usuario que desea buscar",
         medicamentos: "Escriba el medicamento que desea buscar",
-        recetas: "Escriba el código o identidad que desea buscar",
     };
 
     searchText.placeholder = searchPlaceholders[moduleName];
@@ -339,9 +335,16 @@ if (!user || !permissions[user.rol]?.includes(moduleName)) {
     window.location.replace("Index.html");
 } else {
     document.getElementById("pageTitle").textContent = config.title;
-    document.getElementById("pageDescription").textContent = config.description;
+    document.getElementById("pageDescription").textContent =
+        isReadOnlyMedicine
+            ? "Consulta del catálogo de medicamentos."
+            : config.description;
     document.getElementById("sessionUser").textContent = `${user.nombre} ${user.apellido} - ${user.rol}`;
-    renderForm();
+    if (isReadOnlyMedicine) {
+        form.closest("section").classList.add("d-none");
+    } else {
+        renderForm();
+    }
     loadRows();
 }
 
@@ -403,6 +406,10 @@ function renderForm() {
         input.name = field.name;
         input.required = Boolean(field.required);
 
+        if (field.currentUser) {
+            input.value = user.id_usuario;
+        }
+
         if (field.autoInvoice) {
             input.readOnly = true;
             input.classList.add("bg-light");
@@ -448,6 +455,24 @@ function renderForm() {
         configureAutomaticChange();
         createSaleItemsSection();
     }
+
+    if (moduleName === "compras") {
+        configurePurchaseTotal();
+    }
+}
+
+function configurePurchaseTotal() {
+    const quantity = document.getElementById("cantidad");
+    const price = document.getElementById("precio_unitario");
+    const total = document.getElementById("total");
+    const update = () => {
+        total.value = (
+            Number(quantity.value || 0) *
+            Number(price.value || 0)
+        ).toFixed(2);
+    };
+    quantity.addEventListener("input", update);
+    price.addEventListener("input", update);
 }
 
 function configureAutomaticChange() {
@@ -483,6 +508,7 @@ function updateSalesChange() {
 function configureAutomaticDiscount() {
     const dniInput = document.getElementById("id_cliente");
     const subtotalInput = document.getElementById("subtotal");
+    createQuickClientRegistration();
     form.dataset.discountRate = "0";
     document.getElementById("puntos_disponibles").value = "0";
 
@@ -517,6 +543,164 @@ function configureAutomaticDiscount() {
         .addEventListener("input", calculateSalesTotals);
 }
 
+function createQuickClientRegistration() {
+    const container = document.createElement("div");
+    container.id = "quickClientRegistration";
+    container.className = "col-12 d-none";
+    container.innerHTML = `
+        <div class="card border-warning-subtle bg-warning-subtle">
+            <div class="card-body">
+                <div class="d-flex flex-wrap justify-content-between align-items-center gap-2">
+                    <div>
+                        <h3 class="h6 mb-1">Cliente no registrado</h3>
+                        <p class="small text-secondary mb-0">
+                            Puede registrarlo sin salir de la venta.
+                        </p>
+                    </div>
+                    <button
+                        id="showQuickClientForm"
+                        class="btn btn-warning btn-sm"
+                        type="button"
+                    >
+                        Registrar nuevo cliente
+                    </button>
+                </div>
+                <div id="quickClientFields" class="row g-3 mt-1 d-none">
+                    <div class="col-12 col-md-6">
+                        <label class="form-label" for="quickClientIdentity">DNI</label>
+                        <input id="quickClientIdentity" class="form-control" type="text">
+                    </div>
+                    <div class="col-12 col-md-6">
+                        <label class="form-label" for="quickClientName">Nombre</label>
+                        <input id="quickClientName" class="form-control" type="text">
+                    </div>
+                    <div class="col-12 col-md-6">
+                        <label class="form-label" for="quickClientLastName">Apellido</label>
+                        <input id="quickClientLastName" class="form-control" type="text">
+                    </div>
+                    <div class="col-12 col-md-6">
+                        <label class="form-label" for="quickClientPhone">Teléfono</label>
+                        <input id="quickClientPhone" class="form-control" type="text">
+                    </div>
+                    <div class="col-12 col-md-6">
+                        <label class="form-label" for="quickClientBirthDate">Fecha de nacimiento</label>
+                        <input id="quickClientBirthDate" class="form-control" type="date">
+                    </div>
+                    <div class="col-12 col-md-6">
+                        <label class="form-label" for="quickClientEmail">Correo</label>
+                        <input id="quickClientEmail" class="form-control" type="email">
+                    </div>
+                    <div class="col-12 col-md-6">
+                        <label class="form-label" for="quickClientAddress">Dirección</label>
+                        <input id="quickClientAddress" class="form-control" type="text">
+                    </div>
+                    <div class="col-12">
+                        <button
+                            id="saveQuickClient"
+                            class="btn btn-success"
+                            type="button"
+                        >
+                            Guardar cliente y continuar venta
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+    form.appendChild(container);
+
+    document
+        .getElementById("showQuickClientForm")
+        .addEventListener("click", () => {
+            document.getElementById("quickClientIdentity").value =
+                document.getElementById("id_cliente").value.trim();
+            document
+                .getElementById("quickClientFields")
+                .classList.remove("d-none");
+        });
+    document
+        .getElementById("saveQuickClient")
+        .addEventListener("click", saveQuickClient);
+}
+
+function toggleQuickClientRegistration(show) {
+    const container = document.getElementById(
+        "quickClientRegistration"
+    );
+    if (!container) return;
+    container.classList.toggle("d-none", !show);
+    if (!show) {
+        document
+            .getElementById("quickClientFields")
+            .classList.add("d-none");
+    }
+}
+
+async function saveQuickClient() {
+    const identity = document
+        .getElementById("quickClientIdentity")
+        .value.trim();
+    const name = document.getElementById("quickClientName").value.trim();
+    const lastName = document
+        .getElementById("quickClientLastName")
+        .value.trim();
+    const phone = document
+        .getElementById("quickClientPhone")
+        .value.trim();
+    const birthDate = document
+        .getElementById("quickClientBirthDate")
+        .value;
+
+    if (!identity || !name || !lastName || !phone || !birthDate) {
+        showMessage(
+            "Complete DNI, nombre, apellido, teléfono y fecha de nacimiento.",
+            true
+        );
+        return;
+    }
+
+    try {
+        await db.execute(
+            `INSERT INTO clientes
+                (
+                    nombre,
+                    apellido,
+                    identidad,
+                    telefono,
+                    correo,
+                    direccion,
+                    fecha_nacimiento,
+                    puntos_acumulados,
+                    estado
+                )
+             VALUES (?, ?, ?, ?, ?, ?, ?, 0, 'Activo')`,
+            [
+                name,
+                lastName,
+                identity,
+                phone,
+                document.getElementById("quickClientEmail").value.trim() || null,
+                document.getElementById("quickClientAddress").value.trim() || null,
+                birthDate,
+            ]
+        );
+        document.getElementById("id_cliente").value = identity;
+        toggleQuickClientRegistration(false);
+        await updateSalesDiscount(false);
+        showMessage(
+            "Cliente registrado y seleccionado para la venta."
+        );
+    } catch (error) {
+        const duplicate = error.code === "ER_DUP_ENTRY";
+        showMessage(
+            duplicate
+                ? "El DNI o correo ya pertenece a otro cliente."
+                : `No se pudo registrar el cliente: ${error.message}`,
+            true
+        );
+    }
+}
+
 function calculateAge(birthDate) {
     const birth = new Date(`${formatDate(birthDate)}T00:00:00`);
     const today = new Date();
@@ -549,6 +733,7 @@ async function updateSalesDiscount(showInvalidDni) {
     const dni = document.getElementById("id_cliente").value.trim();
 
     if (!dni) {
+        toggleQuickClientRegistration(false);
         form.dataset.discountRate = "0";
         document.getElementById("puntos_disponibles").value = "0";
         calculateSalesTotals();
@@ -565,6 +750,7 @@ async function updateSalesDiscount(showInvalidDni) {
     );
 
     if (!clients.length) {
+        toggleQuickClientRegistration(true);
         form.dataset.discountRate = "0";
         document.getElementById("puntos_disponibles").value = "0";
         calculateSalesTotals();
@@ -579,6 +765,7 @@ async function updateSalesDiscount(showInvalidDni) {
     }
 
     const age = calculateAge(clients[0].fecha_nacimiento);
+    toggleQuickClientRegistration(false);
     const rate = getDiscountRate(age);
     form.dataset.discountRate = String(rate);
     document.getElementById("puntos_disponibles").value =
@@ -606,7 +793,7 @@ function calculateSalesTotals() {
     const rate = Math.min(1, ageRate + pointsRate);
     const discount = subtotal * rate;
     const taxableSubtotal = Math.max(0, subtotal - discount);
-    const tax = taxableSubtotal * 0.12;
+    const tax = taxableSubtotal * SALES_TAX_RATE;
 
     document.getElementById("descuento").value =
         discount.toFixed(2);
@@ -664,7 +851,7 @@ function createSaleItemsSection() {
             </div>
             <div class="card-body">
                 <div class="row g-3 align-items-end mb-3">
-                    <div class="col-12 col-md-7 position-relative">
+                    <div class="col-12 col-md-5 position-relative">
                         <label for="saleMedicine" class="form-label fw-semibold">
                             Buscar medicamento
                         </label>
@@ -680,6 +867,19 @@ function createSaleItemsSection() {
                             class="list-group position-absolute start-0 end-0 mx-2 shadow z-3 d-none"
                         ></div>
                     </div>
+                    <div class="col-12 col-md-3">
+                        <label for="salePresentation" class="form-label fw-semibold">
+                            Presentación
+                        </label>
+                        <select
+                            id="salePresentation"
+                            class="form-select"
+                            disabled
+                        >
+                            <option value="">Seleccione un medicamento...</option>
+                        </select>
+                        <small id="salePresentationPrice" class="text-success"></small>
+                    </div>
                     <div class="col-12 col-md-2">
                         <label for="saleQuantity" class="form-label fw-semibold">
                             Cantidad
@@ -692,7 +892,7 @@ function createSaleItemsSection() {
                             value="1"
                         >
                     </div>
-                    <div class="col-12 col-md-3">
+                    <div class="col-12 col-md-2">
                         <button
                             id="addMedicineButton"
                             class="btn btn-success w-100"
@@ -716,8 +916,14 @@ function createSaleItemsSection() {
         document.getElementById("saleMedicine");
 
     medicineInput.addEventListener("input", () => {
+        selectedSaleMedicineId = null;
+        resetSalePresentation();
         renderMedicineSuggestions(medicineInput.value);
     });
+
+    document
+        .getElementById("salePresentation")
+        .addEventListener("change", updateSalePresentationPrice);
 
     medicineInput.addEventListener("focus", () => {
         renderMedicineSuggestions(medicineInput.value);
@@ -735,14 +941,42 @@ function createSaleItemsSection() {
 
 async function loadSaleMedicineCatalog() {
     try {
-        [medicineCatalog] = await db.query(
-            `SELECT id_medicamento, codigo, nombre,
-                    precio_venta, stock_total
-             FROM medicamentos
-             WHERE estado = 'Disponible'
-                AND stock_total > 0
-             ORDER BY nombre`
+        const [catalogRows] = await db.query(
+            `SELECT m.id_medicamento, m.codigo, m.nombre,
+                    m.precio_venta, m.stock_total, m.restriccion,
+                    mp.id_presentacion,
+                    mp.nombre_presentacion,
+                    mp.precio_venta AS precio_presentacion
+             FROM medicamentos m
+             LEFT JOIN medicamento_presentaciones mp
+                ON mp.id_medicamento = m.id_medicamento
+               AND mp.estado = 'Activa'
+             WHERE m.estado = 'Disponible'
+                AND m.stock_total > 0
+             ORDER BY m.nombre, mp.nombre_presentacion`
         );
+        const medicines = new Map();
+        catalogRows.forEach((row) => {
+            if (!medicines.has(row.id_medicamento)) {
+                medicines.set(row.id_medicamento, {
+                    id_medicamento: row.id_medicamento,
+                    codigo: row.codigo,
+                    nombre: row.nombre,
+                    precio_venta: Number(row.precio_venta),
+                    stock_total: Number(row.stock_total),
+                    restriccion: row.restriccion,
+                    presentations: [],
+                });
+            }
+            if (row.id_presentacion) {
+                medicines.get(row.id_medicamento).presentations.push({
+                    id_presentacion: row.id_presentacion,
+                    nombre: row.nombre_presentacion,
+                    precio: Number(row.precio_presentacion),
+                });
+            }
+        });
+        medicineCatalog = [...medicines.values()];
 
         hideMedicineSuggestions();
     } catch (error) {
@@ -792,13 +1026,23 @@ function renderMedicineSuggestions(searchValue) {
 
         const detail = document.createElement("small");
         detail.className = "text-secondary";
+        const prices = medicine.presentations.map(
+            (presentation) => presentation.precio
+        );
+        const startingPrice = prices.length
+            ? Math.min(...prices)
+            : medicine.precio_venta;
         detail.textContent =
-            `Stock: ${medicine.stock_total} | Precio: L ${Number(medicine.precio_venta).toFixed(2)}`;
+            `Stock: ${medicine.stock_total} | Desde: L ${startingPrice.toFixed(2)}`;
+        if (medicine.restriccion === "Con Receta Medica") {
+            detail.textContent += " | Venta controlada";
+        }
 
         option.append(name, detail);
         option.addEventListener("click", () => {
             document.getElementById("saleMedicine").value =
                 getMedicineDisplay(medicine);
+            selectSaleMedicine(medicine);
             hideMedicineSuggestions();
         });
 
@@ -809,6 +1053,54 @@ function renderMedicineSuggestions(searchValue) {
         "d-none",
         matches.length === 0
     );
+}
+
+function selectSaleMedicine(medicine) {
+    selectedSaleMedicineId = medicine.id_medicamento;
+    const select = document.getElementById("salePresentation");
+    select.replaceChildren(
+        new Option("Seleccione la presentación...", "")
+    );
+    medicine.presentations.forEach((presentation) => {
+        select.add(
+            new Option(
+                `${presentation.nombre} - L ${presentation.precio.toFixed(2)}`,
+                String(presentation.id_presentacion)
+            )
+        );
+    });
+    select.disabled = medicine.presentations.length === 0;
+    if (medicine.presentations.length === 1) {
+        select.value = String(
+            medicine.presentations[0].id_presentacion
+        );
+    }
+    updateSalePresentationPrice();
+}
+
+function resetSalePresentation() {
+    const select = document.getElementById("salePresentation");
+    if (!select) return;
+    select.replaceChildren(
+        new Option("Seleccione un medicamento...", "")
+    );
+    select.disabled = true;
+    document.getElementById("salePresentationPrice").textContent = "";
+}
+
+function updateSalePresentationPrice() {
+    const medicine = medicineCatalog.find(
+        (item) => item.id_medicamento === selectedSaleMedicineId
+    );
+    const presentation = medicine?.presentations.find(
+        (item) =>
+            String(item.id_presentacion) ===
+            document.getElementById("salePresentation").value
+    );
+    document.getElementById("salePresentationPrice").textContent =
+        presentation
+            ? `Precio seleccionado: L ${presentation.precio.toFixed(2)}`
+            : "";
 }
 
 function hideMedicineSuggestions() {
@@ -829,6 +1121,7 @@ function addMedicineToSale() {
     const medicine = medicineCatalog.find(
         (item) => {
             return (
+                item.id_medicamento === selectedSaleMedicineId ||
                 getMedicineDisplay(item)
                     .toLocaleLowerCase("es") === medicineText ||
                 item.codigo.toLocaleLowerCase("es") === medicineText ||
@@ -841,6 +1134,18 @@ function addMedicineToSale() {
         showMessage("Seleccione un medicamento.", true);
         return;
     }
+    const presentation = medicine.presentations.find(
+        (item) =>
+            String(item.id_presentacion) ===
+            document.getElementById("salePresentation").value
+    );
+    if (!presentation) {
+        showMessage(
+            "Seleccione la presentación del medicamento.",
+            true
+        );
+        return;
+    }
     if (!Number.isInteger(quantity) || quantity <= 0) {
         showMessage("Ingrese una cantidad válida.", true);
         return;
@@ -848,15 +1153,31 @@ function addMedicineToSale() {
 
     const existing = saleItems.find(
         (item) =>
-            item.id_medicamento === medicine.id_medicamento
+            item.id_medicamento === medicine.id_medicamento &&
+            item.id_presentacion === presentation.id_presentacion
     );
-    const totalQuantity = quantity + (existing?.cantidad || 0);
+    const medicineQuantity = saleItems
+        .filter(
+            (item) =>
+                item.id_medicamento === medicine.id_medicamento
+        )
+        .reduce((sum, item) => sum + item.cantidad, 0);
+    const totalQuantity = quantity + medicineQuantity;
 
     if (totalQuantity > medicine.stock_total) {
         showMessage(
             `Solo hay ${medicine.stock_total} unidades disponibles.`,
             true
         );
+        return;
+    }
+
+    if (
+        medicine.restriccion === "Con Receta Medica" &&
+        !window.confirm(
+            "Este medicamento es de venta controlada. ¿Verificó la receta médica?"
+        )
+    ) {
         return;
     }
 
@@ -869,23 +1190,34 @@ function addMedicineToSale() {
             id_medicamento: medicine.id_medicamento,
             codigo: medicine.codigo,
             nombre: medicine.nombre,
+            id_presentacion: presentation.id_presentacion,
+            presentacion: presentation.nombre,
             cantidad: quantity,
-            precio_unitario: Number(medicine.precio_venta),
-            subtotal: quantity * Number(medicine.precio_venta),
+            precio_unitario: presentation.precio,
+            restriccion: medicine.restriccion,
+            subtotal: quantity * presentation.precio,
         });
     }
 
     document.getElementById("saleMedicine").value = "";
+    selectedSaleMedicineId = null;
+    resetSalePresentation();
     hideMedicineSuggestions();
     document.getElementById("saleQuantity").value = "1";
     renderSaleItems();
 }
 
 function getMedicineDisplay(medicine) {
+    const prices = medicine.presentations.map(
+        (presentation) => presentation.precio
+    );
+    const startingPrice = prices.length
+        ? Math.min(...prices)
+        : medicine.precio_venta;
     return (
         `${medicine.codigo} - ${medicine.nombre}` +
         ` | Stock: ${medicine.stock_total}` +
-        ` | L ${Number(medicine.precio_venta).toFixed(2)}`
+        ` | Desde L ${startingPrice.toFixed(2)}`
     );
 }
 
@@ -909,7 +1241,7 @@ function renderSaleItems() {
         table.className = "table table-sm table-striped align-middle mb-0";
         const header = table.createTHead().insertRow();
         header.className = "table-success";
-        ["Código", "Medicamento", "Cantidad", "Precio", "Subtotal", "Acción"]
+        ["Código", "Medicamento", "Presentación", "Cantidad", "Precio", "Subtotal", "Acción"]
             .forEach((text) => {
                 const th = document.createElement("th");
                 th.textContent = text;
@@ -921,6 +1253,7 @@ function renderSaleItems() {
             [
                 item.codigo,
                 item.nombre,
+                item.presentacion,
                 item.cantidad,
                 `L ${item.precio_unitario.toFixed(2)}`,
                 `L ${item.subtotal.toFixed(2)}`,
@@ -959,17 +1292,33 @@ async function loadRows() {
             ...fields.map((field) => `${config.table}.${field.name}`),
         ];
 
-        const usesClientDni = ["recetas", "ventas"].includes(moduleName);
-        const join = usesClientDni
-            ? `LEFT JOIN clientes
-               ON ${config.table}.id_cliente = clientes.id_cliente`
-            : "";
+        const usesClientDni = moduleName === "ventas";
+        const usesDistributor = moduleName === "compras";
+        let join = "";
+        if (usesClientDni) {
+            join = `LEFT JOIN clientes
+                    ON ${config.table}.id_cliente = clientes.id_cliente`;
+        } else if (usesDistributor) {
+            join = `LEFT JOIN distribuidores
+                    ON compras.id_distribuidor =
+                       distribuidores.id_distribuidor`;
+        }
         const clientIdentity = usesClientDni
             ? ", clientes.identidad AS identidad_cliente"
+            : "";
+        const distributorName = usesDistributor
+            ? ", distribuidores.nombre AS nombre_distribuidor"
+            : "";
+        const lotCount = moduleName === "medicamentos"
+            ? `, (SELECT COUNT(*)
+                  FROM lote
+                  WHERE lote.id_medicamento =
+                        medicamentos.id_medicamento) AS lotes_registrados`
             : "";
 
         [rows] = await db.query(
             `SELECT ${columns.join(", ")}${clientIdentity}
+                    ${distributorName}${lotCount}
              FROM ${config.table}
              ${join}
              ORDER BY ${config.table}.${config.id} DESC`
@@ -1003,29 +1352,52 @@ function renderTable(records = rows) {
             label: "ID Cliente",
         });
     }
+    if (moduleName === "medicamentos") {
+        fields.push({
+            name: "lotes_registrados",
+            label: "Lotes",
+        });
+    }
     const table = document.createElement("table");
     table.className = "table table-striped table-hover align-middle mb-0";
     const header = table.createTHead().insertRow();
     header.className = "table-success";
     fields.forEach((field) => { const th = document.createElement("th"); th.textContent = field.label; header.appendChild(th); });
-    const actionsHeader = document.createElement("th"); actionsHeader.textContent = "Acciones"; header.appendChild(actionsHeader);
+    if (!isReadOnlyMedicine && !isImmutablePurchase) {
+        const actionsHeader = document.createElement("th");
+        actionsHeader.textContent = "Acciones";
+        header.appendChild(actionsHeader);
+    }
     const body = table.createTBody();
     records.forEach((row) => {
         const tr = body.insertRow();
+        if (moduleName === "medicamentos") {
+            const stock = Number(row.stock_total || 0);
+            if (stock <= 10) {
+                tr.classList.add("table-danger");
+            } else if (stock <= 50) {
+                tr.classList.add("table-warning");
+            }
+        }
         fields.forEach((field) => {
             const column = field.displayName || field.name;
             tr.insertCell().textContent = formatValue(row[column]);
         });
-        const actions = tr.insertCell();
-        const edit = document.createElement("button");
-        edit.className = "btn btn-outline-success btn-sm me-2";
-        edit.textContent = "Editar";
-        edit.addEventListener("click", () => editRecord(row));
-        const remove = document.createElement("button");
-        remove.className = "btn btn-danger btn-sm";
-        remove.textContent = "Eliminar";
-        remove.addEventListener("click", () => deleteRecord(row[config.id]));
-        actions.append(edit, remove);
+        if (!isReadOnlyMedicine && !isImmutablePurchase) {
+            const actions = tr.insertCell();
+            const edit = document.createElement("button");
+            edit.className = "btn btn-outline-success btn-sm me-2";
+            edit.textContent = "Editar";
+            edit.addEventListener("click", () => editRecord(row));
+            const remove = document.createElement("button");
+            remove.className = "btn btn-danger btn-sm";
+            remove.textContent = "Eliminar";
+            remove.addEventListener(
+                "click",
+                () => deleteRecord(row[config.id])
+            );
+            actions.append(edit, remove);
+        }
     });
     tableContainer.appendChild(table);
 }
@@ -1093,8 +1465,35 @@ function getData() {
 
 async function saveRecord(event) {
     event.preventDefault();
+    if (isReadOnlyMedicine) {
+        showMessage(
+            "El Cajero solo puede consultar medicamentos.",
+            true
+        );
+        return;
+    }
     try {
         const data = getData();
+
+        if (moduleName === "medicamentos") {
+            await saveMedicineWithLot(data);
+            showMessage(
+                "Medicamento y lote registrados correctamente."
+            );
+            clearForm();
+            await loadRows();
+            return;
+        }
+
+        if (moduleName === "compras") {
+            await savePurchaseWithLot(data);
+            showMessage(
+                "Compra, lote e inventario registrados correctamente."
+            );
+            clearForm();
+            await loadRows();
+            return;
+        }
 
         const clientDniField = config.fields.find(
             (field) => field.type === "client-dni"
@@ -1115,7 +1514,7 @@ async function saveRecord(event) {
 
             if (!clients.length) {
                 throw new Error(
-                    "No existe un cliente activo con el DNI ingresado."
+                    "No existe un cliente activo con el DNI ingresado. Regístrelo primero en Clientes."
                 );
             }
 
@@ -1159,7 +1558,7 @@ async function saveRecord(event) {
                 subtotal - data.descuento
             );
             data.impuesto =
-                Number((taxableSubtotal * 0.12).toFixed(2));
+                Number((taxableSubtotal * SALES_TAX_RATE).toFixed(2));
             data.total =
                 Number(
                     (taxableSubtotal + data.impuesto).toFixed(2)
@@ -1202,6 +1601,340 @@ async function saveRecord(event) {
         await loadRows();
     } catch (error) {
         showMessage(error.message, true);
+    }
+}
+
+function getLotFormData(prefix) {
+    const number = document.getElementById(
+        `numero_lote_${prefix}`
+    )?.value.trim();
+    const quantityInput = prefix === "registro"
+        ? "cantidad_lote_registro"
+        : "cantidad";
+    const quantity = Number(
+        document.getElementById(quantityInput)?.value
+    );
+    const manufacture = document.getElementById(
+        "fecha_fabricacion_lote"
+    )?.value;
+    const expiration = document.getElementById(
+        "fecha_vencimiento_lote"
+    )?.value;
+
+    if (
+        !number ||
+        !Number.isInteger(quantity) ||
+        quantity <= 0 ||
+        !manufacture ||
+        !expiration
+    ) {
+        throw new Error(
+            "Complete todos los datos del lote con una cantidad válida."
+        );
+    }
+    if (expiration <= manufacture) {
+        throw new Error(
+            "La fecha de vencimiento debe ser posterior a la fabricación."
+        );
+    }
+    const today = new Date().toISOString().slice(0, 10);
+    if (expiration <= today) {
+        throw new Error(
+            "No se puede registrar un lote vencido."
+        );
+    }
+
+    return {
+        numero_lote: number,
+        cantidad: quantity,
+        fecha_fabricacion: manufacture,
+        fecha_vencimiento: expiration,
+    };
+}
+
+async function saveMedicineWithLot(data) {
+    if (editingId !== null) {
+        const columns = Object.keys(data).filter(
+            (column) => column !== "stock_total"
+        );
+        await db.execute(
+            `UPDATE medicamentos
+             SET ${columns.map((column) => `${column} = ?`).join(", ")}
+             WHERE id_medicamento = ?`,
+            [...columns.map((column) => data[column]), editingId]
+        );
+        await saveMedicinePresentations(db, editingId, data);
+        return;
+    }
+
+    const lot = getLotFormData("registro");
+    const connection = await db.getConnection();
+    try {
+        await connection.beginTransaction();
+        const [duplicateLots] = await connection.execute(
+            "SELECT id_lote FROM lote WHERE numero_lote = ? LIMIT 1",
+            [lot.numero_lote]
+        );
+        if (duplicateLots.length) {
+            throw new Error("El número de lote ya está registrado.");
+        }
+
+        const [existing] = await connection.execute(
+            `SELECT id_medicamento
+             FROM medicamentos
+             WHERE LOWER(TRIM(nombre)) = LOWER(TRIM(?))
+             LIMIT 1
+             FOR UPDATE`,
+            [data.nombre]
+        );
+        let medicineId;
+
+        if (existing.length) {
+            medicineId = existing[0].id_medicamento;
+            await connection.execute(
+                `UPDATE medicamentos
+                 SET stock_total = stock_total + ?,
+                     estado = 'Disponible'
+                 WHERE id_medicamento = ?`,
+                [lot.cantidad, medicineId]
+            );
+        } else {
+            data.stock_total = lot.cantidad;
+            data.estado = data.estado || "Disponible";
+            const columns = Object.keys(data);
+            const [result] = await connection.execute(
+                `INSERT INTO medicamentos
+                    (${columns.join(", ")})
+                 VALUES
+                    (${columns.map(() => "?").join(", ")})`,
+                Object.values(data)
+            );
+            medicineId = result.insertId;
+        }
+
+        await saveMedicinePresentations(
+            connection,
+            medicineId,
+            data
+        );
+
+        await connection.execute(
+            `INSERT INTO lote
+                (
+                    id_medicamento,
+                    numero_lote,
+                    cantidad_inicial,
+                    cantidad_disponible,
+                    fecha_fabricacion,
+                    fecha_vencimiento,
+                    precio_compra,
+                    estado
+                )
+             VALUES (?, ?, ?, ?, ?, ?, ?, 'Disponible')`,
+            [
+                medicineId,
+                lot.numero_lote,
+                lot.cantidad,
+                lot.cantidad,
+                lot.fecha_fabricacion,
+                lot.fecha_vencimiento,
+                data.precio_compra,
+            ]
+        );
+        await connection.commit();
+    } catch (error) {
+        await connection.rollback();
+        throw error;
+    } finally {
+        connection.release();
+    }
+}
+
+async function saveMedicinePresentations(
+    connection,
+    medicineId,
+    medicineData
+) {
+    const defaultName = medicineData.forma_venta;
+    if (defaultName) {
+        await connection.execute(
+            `INSERT INTO medicamento_presentaciones
+                (
+                    id_medicamento,
+                    nombre_presentacion,
+                    precio_venta,
+                    estado
+                )
+             VALUES (?, ?, ?, 'Activa')
+             ON DUPLICATE KEY UPDATE
+                precio_venta = VALUES(precio_venta),
+                estado = 'Activa'`,
+            [
+                medicineId,
+                defaultName,
+                medicineData.precio_venta,
+            ]
+        );
+    }
+
+    const alternativeName = document
+        .getElementById("presentacion_alternativa")
+        ?.value.trim();
+    const alternativePrice = Number(
+        document.getElementById(
+            "precio_presentacion_alternativa"
+        )?.value
+    );
+    if (
+        alternativeName &&
+        Number.isFinite(alternativePrice) &&
+        alternativePrice > 0
+    ) {
+        await connection.execute(
+            `INSERT INTO medicamento_presentaciones
+                (
+                    id_medicamento,
+                    nombre_presentacion,
+                    precio_venta,
+                    estado
+                )
+             VALUES (?, ?, ?, 'Activa')
+             ON DUPLICATE KEY UPDATE
+                precio_venta = VALUES(precio_venta),
+                estado = 'Activa'`,
+            [medicineId, alternativeName, alternativePrice]
+        );
+    } else if (alternativeName || alternativePrice > 0) {
+        throw new Error(
+            "Complete la presentación alternativa y su precio."
+        );
+    }
+}
+
+async function savePurchaseWithLot(data) {
+    if (editingId !== null) {
+        throw new Error(
+            "Las compras registradas no se editan; registre una nueva compra."
+        );
+    }
+
+    const distributorName = String(data.id_distribuidor || "").trim();
+    if (!distributorName) {
+        throw new Error("Ingrese el laboratorio o proveedor.");
+    }
+    const lot = getLotFormData("compra");
+    const connection = await db.getConnection();
+
+    try {
+        await connection.beginTransaction();
+        const [medicines] = await connection.execute(
+            `SELECT id_medicamento
+             FROM medicamentos
+             WHERE id_medicamento = ?
+             LIMIT 1
+             FOR UPDATE`,
+            [data.id_medicamento]
+        );
+        if (!medicines.length) {
+            throw new Error(
+                "El medicamento no está registrado. Regístrelo primero con su lote."
+            );
+        }
+
+        const [duplicateLots] = await connection.execute(
+            "SELECT id_lote FROM lote WHERE numero_lote = ? LIMIT 1",
+            [lot.numero_lote]
+        );
+        if (duplicateLots.length) {
+            throw new Error("El número de lote ya está registrado.");
+        }
+
+        const [distributors] = await connection.execute(
+            `SELECT id_distribuidor
+             FROM distribuidores
+             WHERE LOWER(TRIM(nombre)) = LOWER(TRIM(?))
+             LIMIT 1`,
+            [distributorName]
+        );
+        let distributorId;
+        if (distributors.length) {
+            distributorId = distributors[0].id_distribuidor;
+        } else {
+            const [result] = await connection.execute(
+                `INSERT INTO distribuidores
+                    (nombre, telefono, correo, estado)
+                 VALUES (?, ?, ?, 'Activo')`,
+                [
+                    distributorName,
+                    document.getElementById("telefono_distribuidor").value.trim() || null,
+                    document.getElementById("correo_distribuidor").value.trim() || null,
+                ]
+            );
+            distributorId = result.insertId;
+        }
+
+        data.id_distribuidor = distributorId;
+        data.total = Number(
+            (
+                Number(data.cantidad) *
+                Number(data.precio_unitario)
+            ).toFixed(2)
+        );
+        const columns = Object.keys(data);
+        const [purchaseResult] = await connection.execute(
+            `INSERT INTO compras
+                (${columns.join(", ")})
+             VALUES
+                (${columns.map(() => "?").join(", ")})`,
+            Object.values(data)
+        );
+
+        await connection.execute(
+            `INSERT INTO lote
+                (
+                    id_medicamento,
+                    id_compra,
+                    numero_lote,
+                    cantidad_inicial,
+                    cantidad_disponible,
+                    fecha_fabricacion,
+                    fecha_vencimiento,
+                    precio_compra,
+                    estado
+                )
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'Disponible')`,
+            [
+                data.id_medicamento,
+                purchaseResult.insertId,
+                lot.numero_lote,
+                lot.cantidad,
+                lot.cantidad,
+                lot.fecha_fabricacion,
+                lot.fecha_vencimiento,
+                data.precio_unitario,
+            ]
+        );
+
+        if (data.estado !== "Cancelada") {
+            await connection.execute(
+                `UPDATE medicamentos
+                 SET stock_total = stock_total + ?,
+                     precio_compra = ?,
+                     estado = 'Disponible'
+                 WHERE id_medicamento = ?`,
+                [
+                    lot.cantidad,
+                    data.precio_unitario,
+                    data.id_medicamento,
+                ]
+            );
+        }
+        await connection.commit();
+    } catch (error) {
+        await connection.rollback();
+        throw error;
+    } finally {
+        connection.release();
     }
 }
 
@@ -1261,8 +1994,19 @@ async function saveSaleTransaction(data) {
         }
 
         for (const item of saleItems) {
+            const requiredStock = saleItems
+                .filter(
+                    (saleItem) =>
+                        saleItem.id_medicamento ===
+                        item.id_medicamento
+                )
+                .reduce(
+                    (sum, saleItem) =>
+                        sum + saleItem.cantidad,
+                    0
+                );
             const [stockRows] = await connection.execute(
-                `SELECT stock_total
+                `SELECT stock_total, restriccion
                  FROM medicamentos
                  WHERE id_medicamento = ?
                  FOR UPDATE`,
@@ -1271,10 +2015,18 @@ async function saveSaleTransaction(data) {
 
             if (
                 !stockRows.length ||
-                stockRows[0].stock_total < item.cantidad
+                stockRows[0].stock_total < requiredStock
             ) {
                 throw new Error(
                     `No hay suficiente stock de ${item.nombre}.`
+                );
+            }
+            if (
+                stockRows[0].restriccion === "Con Receta Medica" &&
+                item.restriccion !== "Con Receta Medica"
+            ) {
+                throw new Error(
+                    `${item.nombre} es un medicamento de venta controlada.`
                 );
             }
         }
@@ -1307,15 +2059,19 @@ async function saveSaleTransaction(data) {
                  (
                     id_venta,
                     id_medicamento,
+                    id_presentacion,
+                    presentacion,
                     cantidad,
                     precio_unitario,
                     descuento,
                     subtotal
                  )
-                 VALUES (?, ?, ?, ?, 0, ?)`,
+                  VALUES (?, ?, ?, ?, ?, ?, 0, ?)`,
                 [
                     saleId,
                     item.id_medicamento,
+                    item.id_presentacion,
+                    item.presentacion,
                     item.cantidad,
                     item.precio_unitario,
                     item.subtotal,
@@ -1363,10 +2119,17 @@ async function saveSaleTransaction(data) {
 }
 
 async function editRecord(row) {
+    if (isReadOnlyMedicine) {
+        return;
+    }
     editingId = row[config.id];
     config.fields.forEach((field) => {
         const input = document.getElementById(field.name);
         if (field.virtual) {
+            input.value = "";
+            if (field.lotField) {
+                input.required = false;
+            }
             return;
         }
         const column = field.displayName || field.name;
@@ -1380,7 +2143,8 @@ async function editRecord(row) {
     if (moduleName === "ventas") {
         const [details] = await db.execute(
             `SELECT dv.id_medicamento, m.codigo,
-                    m.nombre, dv.cantidad,
+                    m.nombre, m.restriccion, dv.cantidad,
+                    dv.id_presentacion, dv.presentacion,
                     dv.precio_unitario, dv.subtotal
              FROM detalles_venta dv
              INNER JOIN medicamentos m
@@ -1404,6 +2168,13 @@ async function editRecord(row) {
 }
 
 async function deleteRecord(id) {
+    if (isReadOnlyMedicine) {
+        showMessage(
+            "El Cajero no puede eliminar medicamentos.",
+            true
+        );
+        return;
+    }
     if (!window.confirm("¿Desea eliminar este registro?")) return;
     try {
         if (moduleName === "ventas") {
@@ -1491,11 +2262,26 @@ function clearForm() {
     saveButton.textContent = "Guardar";
     const password = config.fields.find((field) => field.type === "password");
     if (password) document.getElementById(password.name).required = Boolean(password.required);
+    config.fields
+        .filter((field) => field.lotField)
+        .forEach((field) => {
+            document.getElementById(field.name).required =
+                Boolean(field.required);
+        });
+    config.fields
+        .filter((field) => field.currentUser)
+        .forEach((field) => {
+            document.getElementById(field.name).value =
+                user.id_usuario;
+        });
 
     if (moduleName === "ventas") {
         saleItems = [];
+        selectedSaleMedicineId = null;
         form.dataset.discountRate = "0";
         document.getElementById("puntos_disponibles").value = "0";
+        toggleQuickClientRegistration(false);
+        resetSalePresentation();
         renderSaleItems();
         loadSaleMedicineCatalog();
         loadNextInvoiceNumber();
