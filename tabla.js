@@ -1301,7 +1301,7 @@ async function loadRows() {
         } else if (usesDistributor) {
             join = `LEFT JOIN distribuidores
                     ON compras.id_distribuidor =
-                       distribuidores.id_distribuidor`;
+                         distribuidores.id_distribuidor`;
         }
         const clientIdentity = usesClientDni
             ? ", clientes.identidad AS identidad_cliente"
@@ -1309,16 +1309,10 @@ async function loadRows() {
         const distributorName = usesDistributor
             ? ", distribuidores.nombre AS nombre_distribuidor"
             : "";
-        const lotCount = moduleName === "medicamentos"
-            ? `, (SELECT COUNT(*)
-                  FROM lote
-                  WHERE lote.id_medicamento =
-                        medicamentos.id_medicamento) AS lotes_registrados`
-            : "";
 
         [rows] = await db.query(
             `SELECT ${columns.join(", ")}${clientIdentity}
-                    ${distributorName}${lotCount}
+                    ${distributorName}
              FROM ${config.table}
              ${join}
              ORDER BY ${config.table}.${config.id} DESC`
@@ -1352,22 +1346,23 @@ function renderTable(records = rows) {
             label: "ID Cliente",
         });
     }
-    if (moduleName === "medicamentos") {
-        fields.push({
-            name: "lotes_registrados",
-            label: "Lotes",
-        });
-    }
+
     const table = document.createElement("table");
     table.className = "table table-striped table-hover align-middle mb-0";
     const header = table.createTHead().insertRow();
     header.className = "table-success";
-    fields.forEach((field) => { const th = document.createElement("th"); th.textContent = field.label; header.appendChild(th); });
+    fields.forEach((field) => { 
+        const th = document.createElement("th"); 
+        th.textContent = field.label; 
+        header.appendChild(th); 
+    });
+    
     if (!isReadOnlyMedicine && !isImmutablePurchase) {
         const actionsHeader = document.createElement("th");
         actionsHeader.textContent = "Acciones";
         header.appendChild(actionsHeader);
     }
+    
     const body = table.createTBody();
     records.forEach((row) => {
         const tr = body.insertRow();
@@ -1422,12 +1417,40 @@ function formatDate(value) {
 
 function getData() {
     const data = {};
+
+    // Si estamos en el módulo de medicamentos, generamos el código consecutivo automáticamente si está vacío
+    if (moduleName === "medicamentos") {
+        const codigoInput = document.getElementById("codigo");
+        if (codigoInput && !codigoInput.value.trim()) {
+            // Buscamos en la tabla de la interfaz el último código o generamos el siguiente consecutivo basado en los elementos actuales
+            const rows = document.querySelectorAll("table tbody tr");
+            let nextNumber = 1;
+            
+            if (rows.length > 0) {
+                // Intentamos extraer el número del primer código visible en la tabla
+                const firstCodeCell = rows[0].querySelector("td");
+                if (firstCodeCell) {
+                    const match = firstCodeCell.textContent.trim().match(/MED(\d+)/i);
+                    if (match) {
+                        nextNumber = parseInt(match[1], 10) + 1;
+                    }
+                }
+            }
+            
+            // Formateamos con ceros a la izquierda para que quede exactamente como MED021, MED022, etc.
+            codigoInput.value = "MED" + String(nextNumber).padStart(3, '0');
+        }
+    }
+
     config.fields.forEach((field) => {
         if (field.virtual) {
             return;
         }
 
-        const value = document.getElementById(field.name).value.trim();
+        const element = document.getElementById(field.name);
+        if (!element) return;
+
+        const value = element.value.trim();
         if (field.required && !value && !(editingId !== null && field.type === "password")) throw new Error(`Complete el campo: ${field.label}`);
 
         if (field.passwordRule && value) {
@@ -1604,54 +1627,6 @@ async function saveRecord(event) {
     }
 }
 
-function getLotFormData(prefix) {
-    const number = document.getElementById(
-        `numero_lote_${prefix}`
-    )?.value.trim();
-    const quantityInput = prefix === "registro"
-        ? "cantidad_lote_registro"
-        : "cantidad";
-    const quantity = Number(
-        document.getElementById(quantityInput)?.value
-    );
-    const manufacture = document.getElementById(
-        "fecha_fabricacion_lote"
-    )?.value;
-    const expiration = document.getElementById(
-        "fecha_vencimiento_lote"
-    )?.value;
-
-    if (
-        !number ||
-        !Number.isInteger(quantity) ||
-        quantity <= 0 ||
-        !manufacture ||
-        !expiration
-    ) {
-        throw new Error(
-            "Complete todos los datos del lote con una cantidad válida."
-        );
-    }
-    if (expiration <= manufacture) {
-        throw new Error(
-            "La fecha de vencimiento debe ser posterior a la fabricación."
-        );
-    }
-    const today = new Date().toISOString().slice(0, 10);
-    if (expiration <= today) {
-        throw new Error(
-            "No se puede registrar un lote vencido."
-        );
-    }
-
-    return {
-        numero_lote: number,
-        cantidad: quantity,
-        fecha_fabricacion: manufacture,
-        fecha_vencimiento: expiration,
-    };
-}
-
 async function saveMedicineWithLot(data) {
     if (editingId !== null) {
         const columns = Object.keys(data).filter(
@@ -1667,17 +1642,9 @@ async function saveMedicineWithLot(data) {
         return;
     }
 
-    const lot = getLotFormData("registro");
     const connection = await db.getConnection();
     try {
         await connection.beginTransaction();
-        const [duplicateLots] = await connection.execute(
-            "SELECT id_lote FROM lote WHERE numero_lote = ? LIMIT 1",
-            [lot.numero_lote]
-        );
-        if (duplicateLots.length) {
-            throw new Error("El número de lote ya está registrado.");
-        }
 
         const [existing] = await connection.execute(
             `SELECT id_medicamento
@@ -1696,10 +1663,9 @@ async function saveMedicineWithLot(data) {
                  SET stock_total = stock_total + ?,
                      estado = 'Disponible'
                  WHERE id_medicamento = ?`,
-                [lot.cantidad, medicineId]
+                [data.stock_total || 0, medicineId]
             );
         } else {
-            data.stock_total = lot.cantidad;
             data.estado = data.estado || "Disponible";
             const columns = Object.keys(data);
             const [result] = await connection.execute(
@@ -1718,29 +1684,6 @@ async function saveMedicineWithLot(data) {
             data
         );
 
-        await connection.execute(
-            `INSERT INTO lote
-                (
-                    id_medicamento,
-                    numero_lote,
-                    cantidad_inicial,
-                    cantidad_disponible,
-                    fecha_fabricacion,
-                    fecha_vencimiento,
-                    precio_compra,
-                    estado
-                )
-             VALUES (?, ?, ?, ?, ?, ?, ?, 'Disponible')`,
-            [
-                medicineId,
-                lot.numero_lote,
-                lot.cantidad,
-                lot.cantidad,
-                lot.fecha_fabricacion,
-                lot.fecha_vencimiento,
-                data.precio_compra,
-            ]
-        );
         await connection.commit();
     } catch (error) {
         await connection.rollback();
@@ -1822,7 +1765,17 @@ async function savePurchaseWithLot(data) {
     if (!distributorName) {
         throw new Error("Ingrese el laboratorio o proveedor.");
     }
-    const lot = getLotFormData("compra");
+
+    const quantity = Number(data.cantidad);
+    const unitPrice = Number(data.precio_unitario);
+
+    if (!Number.isInteger(quantity) || quantity <= 0) {
+        throw new Error("Ingrese una cantidad válida para la compra.");
+    }
+    if (!Number.isFinite(unitPrice) || unitPrice < 0) {
+        throw new Error("Ingrese un precio unitario válido.");
+    }
+
     const connection = await db.getConnection();
 
     try {
@@ -1837,16 +1790,8 @@ async function savePurchaseWithLot(data) {
         );
         if (!medicines.length) {
             throw new Error(
-                "El medicamento no está registrado. Regístrelo primero con su lote."
+                "El medicamento no está registrado. Regístrelo primero."
             );
-        }
-
-        const [duplicateLots] = await connection.execute(
-            "SELECT id_lote FROM lote WHERE numero_lote = ? LIMIT 1",
-            [lot.numero_lote]
-        );
-        if (duplicateLots.length) {
-            throw new Error("El número de lote ya está registrado.");
         }
 
         const [distributors] = await connection.execute(
@@ -1866,53 +1811,23 @@ async function savePurchaseWithLot(data) {
                  VALUES (?, ?, ?, 'Activo')`,
                 [
                     distributorName,
-                    document.getElementById("telefono_distribuidor").value.trim() || null,
-                    document.getElementById("correo_distribuidor").value.trim() || null,
+                    document.getElementById("telefono_distribuidor")?.value.trim() || null,
+                    document.getElementById("correo_distribuidor")?.value.trim() || null,
                 ]
             );
             distributorId = result.insertId;
         }
 
         data.id_distribuidor = distributorId;
-        data.total = Number(
-            (
-                Number(data.cantidad) *
-                Number(data.precio_unitario)
-            ).toFixed(2)
-        );
+        data.total = Number((quantity * unitPrice).toFixed(2));
+        
         const columns = Object.keys(data);
-        const [purchaseResult] = await connection.execute(
+        await connection.execute(
             `INSERT INTO compras
                 (${columns.join(", ")})
              VALUES
                 (${columns.map(() => "?").join(", ")})`,
             Object.values(data)
-        );
-
-        await connection.execute(
-            `INSERT INTO lote
-                (
-                    id_medicamento,
-                    id_compra,
-                    numero_lote,
-                    cantidad_inicial,
-                    cantidad_disponible,
-                    fecha_fabricacion,
-                    fecha_vencimiento,
-                    precio_compra,
-                    estado
-                )
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'Disponible')`,
-            [
-                data.id_medicamento,
-                purchaseResult.insertId,
-                lot.numero_lote,
-                lot.cantidad,
-                lot.cantidad,
-                lot.fecha_fabricacion,
-                lot.fecha_vencimiento,
-                data.precio_unitario,
-            ]
         );
 
         if (data.estado !== "Cancelada") {
@@ -1923,8 +1838,8 @@ async function savePurchaseWithLot(data) {
                      estado = 'Disponible'
                  WHERE id_medicamento = ?`,
                 [
-                    lot.cantidad,
-                    data.precio_unitario,
+                    quantity,
+                    unitPrice,
                     data.id_medicamento,
                 ]
             );
@@ -2260,26 +2175,28 @@ function clearForm() {
     form.reset();
     editingId = null;
     saveButton.textContent = "Guardar";
+    
     const password = config.fields.find((field) => field.type === "password");
-    if (password) document.getElementById(password.name).required = Boolean(password.required);
-    config.fields
-        .filter((field) => field.lotField)
-        .forEach((field) => {
-            document.getElementById(field.name).required =
-                Boolean(field.required);
-        });
+    if (password) {
+        document.getElementById(password.name).required = Boolean(password.required);
+    }
+
     config.fields
         .filter((field) => field.currentUser)
         .forEach((field) => {
-            document.getElementById(field.name).value =
-                user.id_usuario;
+            const input = document.getElementById(field.name);
+            if (input) {
+                input.value = user.id_usuario;
+            }
         });
 
     if (moduleName === "ventas") {
         saleItems = [];
         selectedSaleMedicineId = null;
         form.dataset.discountRate = "0";
-        document.getElementById("puntos_disponibles").value = "0";
+        const puntosDisponibles = document.getElementById("puntos_disponibles");
+        if (puntosDisponibles) puntosDisponibles.value = "0";
+        
         toggleQuickClientRegistration(false);
         resetSalePresentation();
         renderSaleItems();
