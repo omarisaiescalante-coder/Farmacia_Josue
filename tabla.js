@@ -47,7 +47,7 @@ tableActions.className = "d-flex flex-wrap gap-2";
 
 if (
     user?.rol === "Administrador" &&
-    ["medicamentos", "ventas"].includes(moduleName)
+    ["medicamentos", "ventas", "compras"].includes(moduleName)
 ) {
     const reportButton = document.createElement("button");
     reportButton.type = "button";
@@ -58,10 +58,15 @@ if (
         reportButton.addEventListener("click", () => {
             window.location.href = "reporte_vencimientos.html";
         });
-    } else {
+    } else if (moduleName === "ventas"){
         reportButton.textContent = "Reporte de ventas";
         reportButton.addEventListener("click", () => {
             window.location.href = "reporte_ventas.html";
+        });
+    }    else { 
+        reportButton.textContent = "Reporte de compras";
+        reportButton.addEventListener("click", () => {
+            window.location.href = "reporte_compras.html";
         });
     }
 
@@ -470,25 +475,11 @@ function renderForm() {
     }
 
     if (moduleName === "compras") {
-        configurePurchaseTotal();
         configureDistributorAutocomplete();
+        loadNextPurchaseInvoiceNumber();
     }
 }
 
-
-function configurePurchaseTotal() {
-    const quantity = document.getElementById("cantidad");
-    const price = document.getElementById("precio_unitario");
-    const total = document.getElementById("total");
-    const update = () => {
-        total.value = (
-            Number(quantity.value || 0) *
-            Number(price.value || 0)
-        ).toFixed(2);
-    };
-    quantity.addEventListener("input", update);
-    price.addEventListener("input", update);
-}
 
 function configureAutomaticChange() {
     document
@@ -1781,16 +1772,6 @@ async function savePurchaseWithLot(data) {
         throw new Error("Ingrese el laboratorio o proveedor.");
     }
 
-    const quantity = Number(data.cantidad);
-    const unitPrice = Number(data.precio_unitario);
-
-    if (!Number.isInteger(quantity) || quantity <= 0) {
-        throw new Error("Ingrese una cantidad válida para la compra.");
-    }
-    if (!Number.isFinite(unitPrice) || unitPrice < 0) {
-        throw new Error("Ingrese un precio unitario válido.");
-    }
-
     const connection = await db.getConnection();
 
     try {
@@ -1834,8 +1815,10 @@ async function savePurchaseWithLot(data) {
         }
 
         data.id_distribuidor = distributorId;
-        data.total = Number((quantity * unitPrice).toFixed(2));
         
+        delete data.cantidad;
+        delete data.precio_unitario;
+    
         const columns = Object.keys(data);
         await connection.execute(
             `INSERT INTO compras
@@ -1845,20 +1828,6 @@ async function savePurchaseWithLot(data) {
             Object.values(data)
         );
 
-        if (data.estado !== "Cancelada") {
-            await connection.execute(
-                `UPDATE medicamentos
-                 SET stock_total = stock_total + ?,
-                     precio_compra = ?,
-                     estado = 'Disponible'
-                 WHERE id_medicamento = ?`,
-                [
-                    quantity,
-                    unitPrice,
-                    data.id_medicamento,
-                ]
-            );
-        }
         await connection.commit();
     } catch (error) {
         await connection.rollback();
@@ -2307,4 +2276,38 @@ function renderDistributorSuggestions(distributors, suggestionsDiv, inputElement
     });
 
     suggestionsDiv.classList.remove("d-none");
+}
+
+/* ====================================================================================
+Función para cargar automáticamente el siguiente número de factura en Compras
+====================================================================================*/
+
+async function loadNextPurchaseInvoiceNumber() {
+    if (editingId !== null) {
+        return;
+    }
+
+    try {
+        const [result] = await db.query(
+            `SELECT COALESCE(
+                MAX(
+                    CAST(
+                        SUBSTRING(numero_factura, 5)
+                        AS UNSIGNED
+                    )
+                ),
+                0
+             ) + 1 AS siguiente
+             FROM compras
+             WHERE numero_factura LIKE 'COM-%'`
+        );
+
+        const nextNumber = Number(result[0].siguiente);
+        const invoiceInput = document.getElementById("numero_factura");
+        if (invoiceInput) {
+            invoiceInput.value = `COM-${String(nextNumber).padStart(4, "0")}`;
+        }
+    } catch (error) {
+        console.error("No se pudo generar el número de factura de compra");
+    }
 }
