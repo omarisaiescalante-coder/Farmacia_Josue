@@ -2,14 +2,23 @@ const db = require("./database").promise();
 const { ipcRenderer } = require("electron");
 
 const reportType = document.body.dataset.report;
-const user = JSON.parse(sessionStorage.getItem("usuarioActivo") || "null");
+
+let user = ipcRenderer.sendSync("session:get-user");
+
+if (!user) {
+    try {
+        user = JSON.parse(sessionStorage.getItem("usuarioActivo") || "null");
+    } catch {
+        sessionStorage.removeItem("usuarioActivo");
+    }
+}
 const message = document.getElementById("message");
 const reportTable = document.getElementById("reportTable");
 let messageTimer = null;
 
 if (!user || user.rol !== "Administrador") {
     window.alert("No tiene permiso para consultar este reporte.");
-    window.location.replace("Index.html");
+    window.location.replace("index.html");
 } else {
     document.getElementById("sessionUser").textContent =
         `${user.nombre} ${user.apellido} - ${user.rol}`;
@@ -30,7 +39,8 @@ document.getElementById("backButton").addEventListener("click", () => {
 
 document.getElementById("logoutButton").addEventListener("click", () => {
     sessionStorage.removeItem("usuarioActivo");
-    window.location.href = "Index.html";
+    ipcRenderer.send("session:clear-user");
+    window.location.href = "index.html";
 });
 
 document

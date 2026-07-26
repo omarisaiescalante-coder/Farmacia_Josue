@@ -1,6 +1,6 @@
 module.exports = {
     title: "Usuarios",
-    description: "Administracion de usuarios del sistema.",
+    description: "Administración de usuarios del sistema.",
     table: "usuarios",
     id: "id_usuario",
     fields: [

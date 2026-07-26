@@ -1,6 +1,6 @@
 module.exports = {
     title: "Clientes",
-    description: "Administracion de clientes registrados.",
+    description: "Administración de clientes registrados.",
     table: "clientes",
     id: "id_cliente",
     fields: [

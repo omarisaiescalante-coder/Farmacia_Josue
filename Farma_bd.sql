@@ -218,7 +218,7 @@ VALUES
 (2, 'Maria', 'Rivas', '0703-1999-01119', '9888-2222', 'Maria@farmacia.com', 'Barrio El Centro, Danli', 'Maria_Adm', 'Perropulgoso12_', 'Administrador', 'Activo'),
 (3, 'Loany', 'Matamoros', '0703-1996-00333', '9777-3333', 'Loany@farmacia.com', 'Colonia Las Colinas, Danli', 'Loany_Adm', 'Ositoloco1@', 'Administrador', 'Activo'),
 (4, 'Maryuri', 'Segura', '0703-2001-00444', '9666-4444', 'Maryu@farmacia.com', 'Barrio Abajo, Danli', 'Maryuri_Adm', 'Jefa2026-@', 'Administrador', 'Activo'),
-(5, 'Fabricio', 'Torrez', '0703-1994-00555', '9555-5555', 'Fabricio@farmacia.com', 'Teupasenti, El Paraiso', 'Fabricio_Adm', 'Nohay@_7.', 'Administrador', 'Activo'),
+(5, 'Fabricio', 'Torrez', '0703-1994-00555', '9555-5555', 'Fabricio@farmacia.com', 'Teupasenti, El Paraiso', 'josfab14', 'josfab', 'Administrador', 'Activo'),
 (6, 'Josue', 'Rivera', '0703-2002-00666', '9444-6611', 'Josue@farmacia.com', 'Barrio El Centro, Danli', 'Josue_Caj', 'Cajero2026@', 'Cajero', 'Activo');
 
 

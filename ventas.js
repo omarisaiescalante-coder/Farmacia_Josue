@@ -1,6 +1,6 @@
 module.exports = {
     title: "Ventas",
-    description: "Registro de ventas y facturacion.",
+    description: "Registro de ventas y facturación.",
     table: "ventas",
     id: "id_venta",
     fields: [

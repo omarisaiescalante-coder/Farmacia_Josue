@@ -2,304 +2,404 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#083c36">
     <meta
-        name="viewport"
-        content="width=device-width, initial-scale=1.0"
+        http-equiv="Content-Security-Policy"
+        content="default-src 'self'; script-src 'self' 'unsafe-eval'; style-src 'self' https://cdn.jsdelivr.net; img-src 'self' data:; font-src 'self' data:; connect-src 'self'"
     >
 
-    <title>Farmacia Josue</title>
+    <title>Farmacia Josue | Sistema de gestión</title>
 
+    <link rel="icon" href="./assets/logo-farmacia-josue.svg" type="image/svg+xml">
     <link
         href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css"
         rel="stylesheet"
     >
-
-    <style>
-        :root {
-            --farmacia-green: #198754;
-            --farmacia-dark: #0f5132;
-            --farmacia-light: #2bb673;
-        }
-
-        #loginScreen {
-            position: relative;
-            overflow: hidden;
-            background:
-                radial-gradient(
-                    circle at top left,
-                    rgba(255, 255, 255, 0.4) 0 9%,
-                    transparent 9.1%
-                ),
-                radial-gradient(
-                    circle at bottom right,
-                    rgba(255, 255, 255, 0.2) 0 12%,
-                    transparent 12.1%
-                ),
-                linear-gradient(
-                    120deg,
-                    var(--farmacia-dark),
-                    var(--farmacia-green),
-                    var(--farmacia-light)
-                );
-        }
-
-        #loginScreen .card {
-            max-width: 1080px;
-            margin: auto;
-            border-radius: 1.25rem;
-            box-shadow: 0 22px 50px rgba(0, 0, 0, 0.22);
-        }
-
-        #loginScreen .col-lg-5 {
-            background: linear-gradient(
-                150deg,
-                #0f5132,
-                #187b4d
-            ) !important;
-        }
-
-        #loginScreen .btn-success {
-            background: linear-gradient(
-                90deg,
-                var(--farmacia-green),
-                var(--farmacia-light)
-            );
-            border: 0;
-        }
-
-        #loginScreen .form-control:focus {
-            border-color: var(--farmacia-green);
-            box-shadow: 0 0 0 0.2rem rgba(25, 135, 84, 0.2);
-        }
-
-        #app {
-            background: #f4faf6;
-        }
-    </style>
-
+    <link rel="stylesheet" href="./styles/bootstrap-theme.css">
 </head>
 
-<body class="bg-light">
-
-    <!-- =====================================================
-                PANTALLA DE INICIO DE SESIÓN
-    ====================================================== -->
-
+<body>
     <section
         id="loginScreen"
-        class="min-vh-100 d-flex align-items-center justify-content-center px-3 py-5"
+        class="login-screen min-vh-100 d-flex align-items-center p-3 p-md-4"
+        aria-labelledby="loginTitle"
     >
-        <div class="container">
-            <div class="row justify-content-center">
-                <div class="col-12 col-xl-10">
-                    <div class="card border-0 overflow-hidden rounded-4 shadow-lg">
-                        <div class="row g-0">
+        <div class="container-xl px-0">
+            <div class="row g-0 login-card mx-auto overflow-hidden bg-white shadow-lg">
+                <aside class="col-lg-5 brand-panel d-none d-lg-flex flex-column justify-content-between p-5 text-white">
+                    <div class="d-flex align-items-center gap-3">
+                        <img
+                            class="brand-mark"
+                            src="./assets/logo-farmacia-josue.svg"
+                            alt=""
+                            width="48"
+                            height="48"
+                        >
+                        <span>
+                            <span class="d-block fw-bold fs-5 lh-sm">Farmacia Josue</span>
+                            <span class="d-block small text-white-50 mt-1">Salud, servicio y confianza</span>
+                        </span>
+                    </div>
 
-                            <div class="col-lg-5 bg-success text-white p-4 p-lg-5 d-flex flex-column justify-content-between">
-                                <div>
-                                    <div class="d-flex align-items-center gap-3 mb-4">
-                                        <div class="border border-light rounded-3 p-3 fs-4 fw-bold">✚</div>
-                                        <div>
-                                            <h1 class="h4 mb-0 fw-bold">Farmacia Josue</h1>
-                                            <p class="mb-0 opacity-75">Sistema de control</p>
-                                        </div>
-                                    </div>
+                    <div class="my-5 position-relative z-1">
+                        <p class="eyebrow text-uppercase fw-bold mb-3">
+                            <span class="eyebrow-dot" aria-hidden="true"></span>
+                            Gestión farmacéutica
+                        </p>
 
-                                    <h2 class="h3 fw-bold mb-3">
-                                        Gestiona tu farmacia 
-                                    </h2>
-                                    <p class="mb-4 opacity-90">
-                                        Descuentos y atención de calidad.
-                                    </p>
+                        <h1 class="display-5 fw-bold lh-sm mb-4">
+                            Todo lo que necesitas para cuidar mejor.
+                        </h1>
 
-                                    
-                                    <p class="mb-4 opacity-90">
-                                    Usa un usuario activo para acceder al sistema.
-                                </p>
+                        <p class="text-white-50 lh-lg mb-4">
+                            Administra ventas, inventario y clientes desde un entorno
+                            claro, confiable y diseñado para tu farmacia.
+                        </p>
 
-                                </div>
+                        <ul class="list-unstyled d-grid gap-3 mb-0">
+                            <li class="d-flex align-items-center gap-3 small fw-semibold">
+                                <span class="feature-icon d-inline-flex align-items-center justify-content-center rounded-3" aria-hidden="true">
+                                    <svg class="icon" viewBox="0 0 24 24">
+                                        <path d="M4 19V8.5A2.5 2.5 0 0 1 6.5 6h11A2.5 2.5 0 0 1 20 8.5V19"/>
+                                        <path d="M8 6V4h8v2M9 11h6M12 8v6M4 19h16"/>
+                                    </svg>
+                                </span>
+                                Control organizado de medicamentos y lotes
+                            </li>
+                            <li class="d-flex align-items-center gap-3 small fw-semibold">
+                                <span class="feature-icon d-inline-flex align-items-center justify-content-center rounded-3" aria-hidden="true">
+                                    <svg class="icon" viewBox="0 0 24 24">
+                                        <path d="M5 3h14v18l-3-2-4 2-4-2-3 2V3Z"/>
+                                        <path d="M8 8h8M8 12h5"/>
+                                    </svg>
+                                </span>
+                                Ventas y compras en un solo lugar
+                            </li>
+                            <li class="d-flex align-items-center gap-3 small fw-semibold">
+                                <span class="feature-icon d-inline-flex align-items-center justify-content-center rounded-3" aria-hidden="true">
+                                    <svg class="icon" viewBox="0 0 24 24">
+                                        <path d="M12 22s8-3.5 8-10V5l-8-3-8 3v7c0 6.5 8 10 8 10Z"/>
+                                        <path d="m9 12 2 2 4-5"/>
+                                    </svg>
+                                </span>
+                                Acceso según el rol de cada colaborador
+                            </li>
+                        </ul>
+                    </div>
 
-                            
-                            </div>
+                    <div class="d-flex justify-content-between gap-3 small text-white-50">
+                        <span class="d-inline-flex align-items-center gap-2">
+                            <svg class="icon icon-sm" viewBox="0 0 24 24" aria-hidden="true">
+                                <rect x="5" y="10" width="14" height="11" rx="2"/>
+                                <path d="M8 10V7a4 4 0 0 1 8 0v3"/>
+                            </svg>
+                            Acceso autorizado
+                        </span>
+                        <span>Versión 1.0</span>
+                    </div>
+                </aside>
 
-                            <div class="col-lg-7 p-4 p-lg-5 bg-white">
-                                <div class="text-center text-lg-start mb-4">
-                                    <p class="text-success text-uppercase fw-bold small mb-2">Acceso seguro</p>
-                                    <h3 class="h3 fw-bold mb-2">Bienvenido de nuevo</h3>
-                                    <p class="text-secondary mb-0">
-                                        Inicia sesión para continuar con la gestión de la farmacia.
-                                    </p>
-                                </div>
-
-                                <div
-                                    id="loginMessage"
-                                    class="alert d-none"
-                                    role="alert"
-                                ></div>
-
-                                <form id="loginForm">
-                                    <div class="mb-3">
-                                        <label for="loginUser" class="form-label fw-semibold">
-                                            Usuario
-                                        </label>
-                                        <input
-                                            id="loginUser"
-                                            name="loginUser"
-                                            class="form-control form-control-lg"
-                                            type="text"
-                                            autocomplete="username"
-                                            placeholder="Ingresa tu usuario"
-                                            required
-                                        >
-
-                                        <div class="form-check mt-2">
-                                            <input
-                                                id="rememberUser"
-                                                class="form-check-input"
-                                                type="checkbox"
-                                            >
-                                            <label class="form-check-label" for="rememberUser">
-                                                Recordar usuario
-                                            </label>
-                                        </div>
-                                    </div>
-
-                                    <div class="mb-3">
-                                        <label for="loginPassword" class="form-label fw-semibold">
-                                            Contraseña
-                                        </label>
-                                        <input
-                                            id="loginPassword"
-                                            name="loginPassword"
-                                            class="form-control form-control-lg"
-                                            type="password"
-                                            autocomplete="current-password"
-                                            placeholder="Ingresa tu contraseña"
-                                            required
-                                        >
-
-                                        <div class="form-check mt-2">
-                                            <input
-                                                id="showLoginPassword"
-                                                class="form-check-input"
-                                                type="checkbox"
-                                            >
-                                            <label class="form-check-label" for="showLoginPassword">
-                                                Mostrar contraseña
-                                            </label>
-                                        </div>
-                                    </div>
-
-                                    <button class="btn btn-success btn-lg w-100 fw-semibold" type="submit">
-                                        Ingresar
-                                    </button>
-                                </form>
-
-                                <p class="small text-secondary mt-3 mb-0">
-                                    Usa un usuario activo para acceder al sistema.
-                                </p>
-                            </div>
+                <div class="col-lg-7 d-flex align-items-center p-4 p-md-5 bg-white">
+                    <div class="login-form-wrap w-100 mx-auto">
+                        <div class="d-flex d-lg-none align-items-center gap-3 mb-5">
+                            <img
+                                class="brand-mark"
+                                src="./assets/logo-farmacia-josue.svg"
+                                alt=""
+                                width="48"
+                                height="48"
+                            >
+                            <span>
+                                <span class="d-block fw-bold fs-5 lh-sm">Farmacia Josue</span>
+                                <span class="d-block small text-secondary mt-1">Sistema de gestión</span>
+                            </span>
                         </div>
+
+                        <span class="badge portal-badge rounded-pill border px-3 py-2 mb-4">
+                            <svg class="icon icon-sm me-1" viewBox="0 0 24 24" aria-hidden="true">
+                                <rect x="5" y="10" width="14" height="11" rx="2"/>
+                                <path d="M8 10V7a4 4 0 0 1 8 0v3"/>
+                            </svg>
+                            Portal administrativo
+                        </span>
+
+                        <h2 id="loginTitle" class="display-6 fw-bold mb-2">Bienvenido</h2>
+                        <p class="text-secondary lh-lg mb-4">
+                            Ingresa tus credenciales para continuar al panel de la farmacia.
+                        </p>
+
+                        <div
+                            id="loginMessage"
+                            class="alert alert-danger d-none py-3"
+                            role="alert"
+                            aria-live="assertive"
+                        >
+                            <span class="d-flex align-items-start gap-2">
+                                <svg class="icon flex-shrink-0 mt-1" viewBox="0 0 24 24" aria-hidden="true">
+                                    <circle cx="12" cy="12" r="9"/>
+                                    <path d="M12 8v5M12 17h.01"/>
+                                </svg>
+                                <span id="loginMessageText"></span>
+                            </span>
+                        </div>
+
+                        <form id="loginForm" novalidate>
+                            <div class="mb-3">
+                                <label for="loginUser" class="form-label fw-semibold">Usuario</label>
+                                <div class="input-group input-group-lg login-control">
+                                    <span class="input-group-text bg-white pe-1" aria-hidden="true">
+                                        <svg class="icon" viewBox="0 0 24 24">
+                                            <circle cx="12" cy="8" r="4"/>
+                                            <path d="M4.5 21a7.5 7.5 0 0 1 15 0"/>
+                                        </svg>
+                                    </span>
+                                    <input
+                                        id="loginUser"
+                                        name="loginUser"
+                                        class="form-control border-start-0"
+                                        type="text"
+                                        autocomplete="username"
+                                        placeholder="Escribe tu usuario"
+                                        aria-describedby="loginMessage"
+                                        required
+                                    >
+                                </div>
+                            </div>
+
+                            <div class="mb-3">
+                                <label for="loginPassword" class="form-label fw-semibold">Contraseña</label>
+                                <div class="input-group input-group-lg login-control">
+                                    <span class="input-group-text bg-white pe-1" aria-hidden="true">
+                                        <svg class="icon" viewBox="0 0 24 24">
+                                            <rect x="5" y="10" width="14" height="11" rx="2"/>
+                                            <path d="M8 10V7a4 4 0 0 1 8 0v3"/>
+                                        </svg>
+                                    </span>
+                                    <input
+                                        id="loginPassword"
+                                        name="loginPassword"
+                                        class="form-control border-start-0 border-end-0"
+                                        type="password"
+                                        autocomplete="current-password"
+                                        placeholder="Escribe tu contraseña"
+                                        aria-describedby="loginMessage"
+                                        required
+                                    >
+                                    <button
+                                        id="togglePassword"
+                                        class="btn password-toggle border-start-0 d-inline-flex align-items-center justify-content-center"
+                                        type="button"
+                                        aria-label="Mostrar contraseña"
+                                        aria-pressed="false"
+                                        title="Mostrar contraseña"
+                                    >
+                                        <svg class="icon eye-on" viewBox="0 0 24 24" aria-hidden="true">
+                                            <path d="M2.5 12s3.5-6 9.5-6 9.5 6 9.5 6-3.5 6-9.5 6-9.5-6-9.5-6Z"/>
+                                            <circle cx="12" cy="12" r="2.5"/>
+                                        </svg>
+                                        <svg class="icon eye-off" viewBox="0 0 24 24" aria-hidden="true">
+                                            <path d="m3 3 18 18M10.6 6.1A9.4 9.4 0 0 1 12 6c6 0 9.5 6 9.5 6a15.9 15.9 0 0 1-2.1 2.8M6.2 6.3A15.5 15.5 0 0 0 2.5 12s3.5 6 9.5 6c1.1 0 2.1-.2 3-.5"/>
+                                            <path d="M9.9 9.9a3 3 0 0 0 4.2 4.2"/>
+                                        </svg>
+                                    </button>
+                                </div>
+                            </div>
+
+                            <div class="form-check mb-4">
+                                <input id="rememberUser" class="form-check-input" type="checkbox">
+                                <label class="form-check-label text-secondary small" for="rememberUser">
+                                    Recordar mi usuario
+                                </label>
+                            </div>
+
+                            <button id="loginSubmit" class="btn btn-success btn-lg w-100 fw-semibold" type="submit">
+                                <span id="loginSubmitText">Iniciar sesión</span>
+                                <span
+                                    id="loginSpinner"
+                                    class="spinner-border spinner-border-sm ms-2 d-none"
+                                    aria-hidden="true"
+                                ></span>
+                            </button>
+                        </form>
+
+                        <p class="d-flex align-items-center justify-content-center gap-2 small text-secondary text-center mt-4 mb-0">
+                            <svg class="icon icon-sm" viewBox="0 0 24 24" aria-hidden="true">
+                                <path d="M12 22s8-3.5 8-10V5l-8-3-8 3v7c0 6.5 8 10 8 10Z"/>
+                                <path d="m9 12 2 2 4-5"/>
+                            </svg>
+                            Tus permisos se aplican automáticamente al ingresar
+                        </p>
+
+                        <p class="small text-secondary text-center mt-5 mb-0">© 2026 Farmacia Josue</p>
                     </div>
                 </div>
             </div>
         </div>
     </section>
 
+    <main id="app" class="app-shell d-none">
+        <aside class="app-sidebar d-flex flex-column text-white">
+            <div class="d-flex align-items-center gap-3 px-4 py-4">
+                <img
+                    class="brand-mark"
+                    src="./assets/logo-farmacia-josue.svg"
+                    alt=""
+                    width="48"
+                    height="48"
+                >
+                <span>
+                    <span class="d-block fw-bold fs-5 lh-sm">Farmacia Josue</span>
+                    <span class="d-block small text-white-50 mt-1">Panel administrativo</span>
+                </span>
+            </div>
 
-    <!-- =====================================================
-                    APLICACIÓN PRINCIPAL
-    ====================================================== -->
+            <hr class="border-white border-opacity-10 mx-4 my-0">
 
-    <main id="app" class="d-none">
+            <nav
+                id="menuOptionsList"
+                class="module-nav flex-grow-1 overflow-y-auto p-3"
+                aria-label="Módulos del sistema"
+            ></nav>
 
-        <!-- Barra superior -->
-
-        <nav class="navbar bg-success navbar-dark sticky-top shadow">
-
-            <div class="container-fluid px-4">
-
-                <div class="navbar-brand d-flex align-items-center gap-3 mb-0">
-                    <span class="border border-light rounded-3 p-2 fs-5 fw-bold">✚</span>
-                    <span>
-                        <span class="d-block fw-bold lh-sm">Farmacia Josue</span>
-                        <small class="d-block fw-normal opacity-75">Panel administrativo</small>
-                    </span>
-                </div>
-
-                <div class="d-flex align-items-center gap-3">
-
+            <div class="border-top border-white border-opacity-10 p-3">
+                <div class="d-flex align-items-center gap-3 px-2 pb-3">
                     <span
-                        id="sessionUser"
-                        class="small text-white border border-light rounded-pill px-3 py-2"
-                    >
-                        Usuario
+                        id="sessionAvatar"
+                        class="sidebar-avatar d-inline-flex align-items-center justify-content-center rounded-3 fw-bold flex-shrink-0"
+                        aria-hidden="true"
+                    >UJ</span>
+                    <span class="overflow-hidden">
+                        <span id="sessionUserName" class="d-block fw-semibold small text-truncate">Usuario</span>
+                        <span id="sessionUserRole" class="d-block small text-white-50 text-truncate">Rol</span>
                     </span>
-
-                    <button
-                        id="logoutBtn"
-                        class="btn btn-outline-light btn-sm px-3 py-2"
-                        type="button"
-                    >
-                        Cerrar sesión
-                    </button>
-
                 </div>
 
+                <button id="logoutBtn" class="btn logout-button w-100 d-flex align-items-center justify-content-center gap-2" type="button">
+                    <svg class="icon icon-sm" viewBox="0 0 24 24" aria-hidden="true">
+                        <path d="M10 17l5-5-5-5M15 12H3"/>
+                        <path d="M14 3h5a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-5"/>
+                    </svg>
+                    Cerrar sesión
+                </button>
             </div>
+        </aside>
 
-        </nav>
-
-
-        <!-- =================================================
-                        MENÚ PRINCIPAL
-        ================================================== -->
-
-        <section
-            id="menuOptions"
-            class="min-vh-100 d-flex flex-column align-items-center justify-content-center text-center px-3 py-5 bg-light"
-        >
-
-            <div class="container">
-
-                <div class="mb-5">
-
-                    <p class="text-success text-uppercase fw-bold small mb-2">Panel principal</p>
-
-                    <h2 class="display-6 fw-bold mb-2">
-                        ¿Qué deseas administrar?
-                    </h2>
-
-                    <p class="text-secondary mb-0">
-                        Accede rápidamente a las áreas de gestión de la farmacia.
-                    </p>
-
+        <section class="app-workspace bg-body-tertiary" aria-labelledby="workspaceTitle">
+            <header class="workspace-topbar d-flex align-items-center justify-content-between gap-3 bg-white border-bottom px-4 px-xl-5 py-3">
+                <div>
+                    <span class="d-block text-uppercase text-secondary fw-bold small">Panel principal</span>
+                    <h1 id="workspaceTitle" class="h5 fw-bold mb-0 mt-1">Centro de operaciones</h1>
                 </div>
 
-                <!-- Los botones se crean desde renderer.js -->
+                <span class="badge session-badge rounded-pill border bg-white text-secondary px-3 py-2">
+                    <span class="session-dot d-inline-block rounded-circle me-2" aria-hidden="true"></span>
+                    Sesión activa
+                </span>
+            </header>
 
-                <div
-                    id="menuOptionsGrid"
-                    class="row g-3 justify-content-center mx-auto w-75"
-                ></div>
+            <div class="container-fluid p-4 p-xl-5">
+                <section class="brand-hero card border-0 rounded-4 shadow-sm text-white p-4 p-xl-5" aria-labelledby="welcomeTitle">
+                    <div class="row align-items-center g-4 position-relative z-1">
+                        <div class="col-lg">
+                            <p class="eyebrow text-uppercase fw-bold mb-3">
+                                <span class="eyebrow-dot" aria-hidden="true"></span>
+                                Resumen general
+                            </p>
+                            <h2 id="welcomeTitle" class="display-6 fw-bold mb-3">Bienvenido al sistema</h2>
+                            <p class="text-white-50 lh-lg mb-0">
+                                Selecciona una opción del menú vertical para comenzar.
+                                Solo verás los módulos habilitados para tu rol.
+                            </p>
+                        </div>
 
+                        <div class="col-lg-auto">
+                            <div class="date-card border border-white border-opacity-10 rounded-4 p-3">
+                                <span class="d-block text-uppercase small text-white-50 fw-bold mb-2">Hoy</span>
+                                <strong id="currentDate" class="d-block">Fecha actual</strong>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <div class="row g-3 mt-1" aria-label="Resumen de la sesión">
+                    <div class="col-12 col-xl-4">
+                        <article class="card h-100 border-0 rounded-4 shadow-sm p-4">
+                            <div class="d-flex align-items-center gap-3">
+                                <span class="summary-icon d-inline-flex align-items-center justify-content-center rounded-3 flex-shrink-0" aria-hidden="true">
+                                    <svg class="icon" viewBox="0 0 24 24">
+                                        <rect x="3" y="3" width="7" height="7" rx="2"/>
+                                        <rect x="14" y="3" width="7" height="7" rx="2"/>
+                                        <rect x="3" y="14" width="7" height="7" rx="2"/>
+                                        <rect x="14" y="14" width="7" height="7" rx="2"/>
+                                    </svg>
+                                </span>
+                                <span class="overflow-hidden">
+                                    <span class="d-block text-uppercase text-secondary fw-bold small">Accesos disponibles</span>
+                                    <strong id="availableModules" class="d-block fs-5 text-truncate">0 módulos</strong>
+                                    <span class="d-block small text-secondary">Asignados a tu perfil</span>
+                                </span>
+                            </div>
+                        </article>
+                    </div>
+
+                    <div class="col-12 col-xl-4">
+                        <article class="card h-100 border-0 rounded-4 shadow-sm p-4">
+                            <div class="d-flex align-items-center gap-3">
+                                <span class="summary-icon d-inline-flex align-items-center justify-content-center rounded-3 flex-shrink-0" aria-hidden="true">
+                                    <svg class="icon" viewBox="0 0 24 24">
+                                        <path d="M12 22s8-3.5 8-10V5l-8-3-8 3v7c0 6.5 8 10 8 10Z"/>
+                                        <path d="m9 12 2 2 4-5"/>
+                                    </svg>
+                                </span>
+                                <span class="overflow-hidden">
+                                    <span class="d-block text-uppercase text-secondary fw-bold small">Perfil actual</span>
+                                    <strong id="roleSummary" class="d-block fs-5 text-truncate">Usuario</strong>
+                                    <span class="d-block small text-secondary">Permisos configurados</span>
+                                </span>
+                            </div>
+                        </article>
+                    </div>
+
+                    <div class="col-12 col-xl-4">
+                        <article class="card h-100 border-0 rounded-4 shadow-sm p-4">
+                            <div class="d-flex align-items-center gap-3">
+                                <span class="summary-icon d-inline-flex align-items-center justify-content-center rounded-3 flex-shrink-0" aria-hidden="true">
+                                    <svg class="icon" viewBox="0 0 24 24">
+                                        <circle cx="12" cy="12" r="9"/>
+                                        <path d="M12 7v5l3 2"/>
+                                    </svg>
+                                </span>
+                                <span>
+                                    <span class="d-block text-uppercase text-secondary fw-bold small">Estado</span>
+                                    <strong class="d-block fs-5">Operativo</strong>
+                                    <span class="d-block small text-secondary">Sesión iniciada correctamente</span>
+                                </span>
+                            </div>
+                        </article>
+                    </div>
+                </div>
+
+                <div class="card border-0 rounded-4 shadow-sm mt-3 p-3">
+                    <div class="d-flex align-items-center gap-3">
+                        <span class="guide-icon d-inline-flex align-items-center justify-content-center rounded-3 flex-shrink-0" aria-hidden="true">
+                            <svg class="icon icon-sm" viewBox="0 0 24 24">
+                                <circle cx="12" cy="12" r="9"/>
+                                <path d="M12 11v5M12 8h.01"/>
+                            </svg>
+                        </span>
+                        <span>
+                            <strong class="d-block small">Navegación rápida</strong>
+                            <span class="d-block small text-secondary">
+                                Las opciones permanecen ordenadas verticalmente en el panel izquierdo.
+                            </span>
+                        </span>
+                    </div>
+                </div>
             </div>
-
         </section>
-
-
     </main>
 
-
-    <!-- Renderer -->
-
-    <script
-        src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"
-    ></script>
-
     <script src="./renderer.js"></script>
-
 </body>
 </html>
-   

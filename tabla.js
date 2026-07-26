@@ -1,4 +1,5 @@
 const db = require("./database").promise();
+const { ipcRenderer } = require("electron");
 
 const moduleName = document.body.dataset.module;
 const config = require(`./${moduleName}.js`);
@@ -16,7 +17,15 @@ let selectedSaleMedicineId = null;
 let lotMedicineCatalog = [];
 let selectedLotMedicine = null;
 const SALES_TAX_RATE = 0.15;
-const user = JSON.parse(sessionStorage.getItem("usuarioActivo") || "null");
+let user = ipcRenderer.sendSync("session:get-user");
+
+if (!user) {
+    try {
+        user = JSON.parse(sessionStorage.getItem("usuarioActivo") || "null");
+    } catch {
+        sessionStorage.removeItem("usuarioActivo");
+    }
+}
 const isReadOnlyMedicine =
     user?.rol === "Cajero" && moduleName === "medicamentos";
 const isImmutablePurchase = moduleName === "compras";
@@ -340,7 +349,7 @@ function showRecordsTable() {
 
 if (!user || !permissions[user.rol]?.includes(moduleName)) {
     window.alert("Debe iniciar sesión o no tiene permiso para consultar esta tabla.");
-    window.location.replace("Index.html");
+    window.location.replace("index.html");
 } else {
     document.getElementById("pageTitle").textContent = config.title;
     document.getElementById("pageDescription").textContent =
@@ -356,10 +365,11 @@ if (!user || !permissions[user.rol]?.includes(moduleName)) {
     loadRows();
 }
 
-document.getElementById("backButton").addEventListener("click", () => { window.location.href = "Index.html"; });
+document.getElementById("backButton").addEventListener("click", () => { window.location.href = "index.html"; });
 document.getElementById("logoutButton").addEventListener("click", () => {
     sessionStorage.removeItem("usuarioActivo");
-    window.location.href = "Index.html";
+    ipcRenderer.send("session:clear-user");
+    window.location.href = "index.html";
 });
 document.getElementById("clearButton").addEventListener("click", clearForm);
 form.addEventListener("submit", saveRecord);
