@@ -8,15 +8,26 @@ const fs = require('fs');
 
 function createWindow() {
     const win = new BrowserWindow({
-        width: 1100,
-        height: 750,
+        width: 1280,
+        height: 820,
+        minWidth: 960,
+        minHeight: 640,
+        backgroundColor: '#f3f7f6',
+        autoHideMenuBar: true,
+        center: true,
+        show: false,
+        title: 'Farmacia Josue',
         webPreferences: {
             nodeIntegration: true,
             contextIsolation: false,
         }
     });
 
-    win.loadFile('Index.html');
+    win.once('ready-to-show', () => {
+        win.show();
+    });
+
+    win.loadFile('index.html');
 }
 
 app.whenReady().then(createWindow);

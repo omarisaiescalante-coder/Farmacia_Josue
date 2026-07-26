@@ -6,7 +6,7 @@ const connection = mysql.createPool({         //creamos conexion a la base de da
     // servidor donde se encuentra la base de datos
     user: "root",
     //usuario de MySQL
-    password: "1234",
+    password: "2006",
     //contraseña de MySQL
     database: "Farmacia_bd",
     //nombre de la base de datos

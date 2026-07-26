@@ -332,7 +332,7 @@ function showRecordsTable() {
 
 if (!user || !permissions[user.rol]?.includes(moduleName)) {
     window.alert("Debe iniciar sesión o no tiene permiso para consultar esta tabla.");
-    window.location.replace("Index.html");
+    window.location.replace("index.html");
 } else {
     document.getElementById("pageTitle").textContent = config.title;
     document.getElementById("pageDescription").textContent =
@@ -348,10 +348,10 @@ if (!user || !permissions[user.rol]?.includes(moduleName)) {
     loadRows();
 }
 
-document.getElementById("backButton").addEventListener("click", () => { window.location.href = "Index.html"; });
+document.getElementById("backButton").addEventListener("click", () => { window.location.href = "index.html"; });
 document.getElementById("logoutButton").addEventListener("click", () => {
     sessionStorage.removeItem("usuarioActivo");
-    window.location.href = "Index.html";
+    window.location.href = "index.html";
 });
 document.getElementById("clearButton").addEventListener("click", clearForm);
 form.addEventListener("submit", saveRecord);

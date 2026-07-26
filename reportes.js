@@ -9,7 +9,7 @@ let messageTimer = null;
 
 if (!user || user.rol !== "Administrador") {
     window.alert("No tiene permiso para consultar este reporte.");
-    window.location.replace("Index.html");
+    window.location.replace("index.html");
 } else {
     document.getElementById("sessionUser").textContent =
         `${user.nombre} ${user.apellido} - ${user.rol}`;
@@ -27,7 +27,7 @@ document.getElementById("backButton").addEventListener("click", () => {
 
 document.getElementById("logoutButton").addEventListener("click", () => {
     sessionStorage.removeItem("usuarioActivo");
-    window.location.href = "Index.html";
+    window.location.href = "index.html";
 });
 
 document
