@@ -9,7 +9,7 @@
         content="default-src 'self'; script-src 'self' 'unsafe-eval'; style-src 'self' https://cdn.jsdelivr.net; img-src 'self' data:; font-src 'self' data:; connect-src 'self'"
     >
 
-    <title>Farmacia Josue | Sistema de gestión</title>
+    <title>Farmacia Josue</title>
 
     <link rel="icon" href="./assets/logo-farmacia-josue.svg" type="image/svg+xml">
     <link
@@ -49,43 +49,9 @@
                         </p>
 
                         <h1 class="display-5 fw-bold lh-sm mb-4">
-                            Todo lo que necesitas para cuidar mejor.
+                            Descuentos y Atencio de Calidad
                         </h1>
 
-                        <p class="text-white-50 lh-lg mb-4">
-                            Administra ventas, inventario y clientes desde un entorno
-                            claro, confiable y diseñado para tu farmacia.
-                        </p>
-
-                        <ul class="list-unstyled d-grid gap-3 mb-0">
-                            <li class="d-flex align-items-center gap-3 small fw-semibold">
-                                <span class="feature-icon d-inline-flex align-items-center justify-content-center rounded-3" aria-hidden="true">
-                                    <svg class="icon" viewBox="0 0 24 24">
-                                        <path d="M4 19V8.5A2.5 2.5 0 0 1 6.5 6h11A2.5 2.5 0 0 1 20 8.5V19"/>
-                                        <path d="M8 6V4h8v2M9 11h6M12 8v6M4 19h16"/>
-                                    </svg>
-                                </span>
-                                Control organizado de medicamentos y lotes
-                            </li>
-                            <li class="d-flex align-items-center gap-3 small fw-semibold">
-                                <span class="feature-icon d-inline-flex align-items-center justify-content-center rounded-3" aria-hidden="true">
-                                    <svg class="icon" viewBox="0 0 24 24">
-                                        <path d="M5 3h14v18l-3-2-4 2-4-2-3 2V3Z"/>
-                                        <path d="M8 8h8M8 12h5"/>
-                                    </svg>
-                                </span>
-                                Ventas y compras en un solo lugar
-                            </li>
-                            <li class="d-flex align-items-center gap-3 small fw-semibold">
-                                <span class="feature-icon d-inline-flex align-items-center justify-content-center rounded-3" aria-hidden="true">
-                                    <svg class="icon" viewBox="0 0 24 24">
-                                        <path d="M12 22s8-3.5 8-10V5l-8-3-8 3v7c0 6.5 8 10 8 10Z"/>
-                                        <path d="m9 12 2 2 4-5"/>
-                                    </svg>
-                                </span>
-                                Acceso según el rol de cada colaborador
-                            </li>
-                        </ul>
                     </div>
 
                     <div class="d-flex justify-content-between gap-3 small text-white-50">
@@ -100,7 +66,7 @@
                     </div>
                 </aside>
 
-                <div class="col-lg-7 d-flex align-items-center p-4 p-md-5 bg-white">
+                <div class="col-lg-7 d-flex flex-column align-items-center justify-content-center position-relative p-4 p-md-5 bg-white">
                     <div class="login-form-wrap w-100 mx-auto">
                         <div class="d-flex d-lg-none align-items-center gap-3 mb-5">
                             <img
@@ -124,10 +90,8 @@
                             Portal administrativo
                         </span>
 
-                        <h2 id="loginTitle" class="display-6 fw-bold mb-2">Bienvenido</h2>
-                        <p class="text-secondary lh-lg mb-4">
-                            Ingresa tus credenciales para continuar al panel de la farmacia.
-                        </p>
+                        <h2 id="loginTitle" class="display-6 fw-bold mb-5">Bienvenido</h2>
+                        
 
                         <div
                             id="loginMessage"
@@ -222,17 +186,8 @@
                                 ></span>
                             </button>
                         </form>
-
-                        <p class="d-flex align-items-center justify-content-center gap-2 small text-secondary text-center mt-4 mb-0">
-                            <svg class="icon icon-sm" viewBox="0 0 24 24" aria-hidden="true">
-                                <path d="M12 22s8-3.5 8-10V5l-8-3-8 3v7c0 6.5 8 10 8 10Z"/>
-                                <path d="m9 12 2 2 4-5"/>
-                            </svg>
-                            Tus permisos se aplican automáticamente al ingresar
-                        </p>
-
-                        <p class="small text-secondary text-center mt-5 mb-0">© 2026 Farmacia Josue</p>
                     </div>
+                    <p class="login-copyright small text-secondary text-center mb-0">© 2026 Farmacia Josue</p>
                 </div>
             </div>
         </div>
@@ -288,8 +243,7 @@
         <section class="app-workspace bg-body-tertiary" aria-labelledby="workspaceTitle">
             <header class="workspace-topbar d-flex align-items-center justify-content-between gap-3 bg-white border-bottom px-4 px-xl-5 py-3">
                 <div>
-                    <span class="d-block text-uppercase text-secondary fw-bold small">Panel principal</span>
-                    <h1 id="workspaceTitle" class="h5 fw-bold mb-0 mt-1">Centro de operaciones</h1>
+                    <h1 id="workspaceTitle" class="h5 fw-bold mb-0 mt-1">Panel Principal</h1>
                 </div>
 
                 <span class="badge session-badge rounded-pill border bg-white text-secondary px-3 py-2">
@@ -308,8 +262,7 @@
                             </p>
                             <h2 id="welcomeTitle" class="display-6 fw-bold mb-3">Bienvenido al sistema</h2>
                             <p class="text-white-50 lh-lg mb-0">
-                                Selecciona una opción del menú vertical para comenzar.
-                                Solo verás los módulos habilitados para tu rol.
+                                ¿Qué deseas gestionar hoy?
                             </p>
                         </div>
 
@@ -380,22 +333,7 @@
                     </div>
                 </div>
 
-                <div class="card border-0 rounded-4 shadow-sm mt-3 p-3">
-                    <div class="d-flex align-items-center gap-3">
-                        <span class="guide-icon d-inline-flex align-items-center justify-content-center rounded-3 flex-shrink-0" aria-hidden="true">
-                            <svg class="icon icon-sm" viewBox="0 0 24 24">
-                                <circle cx="12" cy="12" r="9"/>
-                                <path d="M12 11v5M12 8h.01"/>
-                            </svg>
-                        </span>
-                        <span>
-                            <strong class="d-block small">Navegación rápida</strong>
-                            <span class="d-block small text-secondary">
-                                Las opciones permanecen ordenadas verticalmente en el panel izquierdo.
-                            </span>
-                        </span>
-                    </div>
-                </div>
+            
             </div>
         </section>
     </main>

@@ -42,12 +42,6 @@ module.exports = {
             required: true
         },
         {
-            name: "id_medicamento",
-            label: "Descripción de medicamentos comprados",
-            type: "textarea",
-            required: true
-        },
-        {
             name: "fecha_compra",
             label: "Fecha de compra",
             type: "date",

@@ -129,7 +129,7 @@ CREATE TABLE Compras (
     id_compra INT AUTO_INCREMENT PRIMARY KEY,
     numero_factura VARCHAR(50) UNIQUE NOT NULL,
     id_usuario INT NOT NULL,
-    id_medicamento INT NOT NULL,
+    id_medicamento INT NULL,
     id_distribuidor INT NOT NULL,
     fecha_compra DATE NOT NULL,
     total DECIMAL(10,2) NOT NULL,

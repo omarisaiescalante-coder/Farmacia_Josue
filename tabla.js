@@ -14,8 +14,6 @@ let dniSearchTimer = null;
 let saleItems = [];
 let medicineCatalog = [];
 let selectedSaleMedicineId = null;
-let lotMedicineCatalog = [];
-let selectedLotMedicine = null;
 const SALES_TAX_RATE = 0.15;
 let user = ipcRenderer.sendSync("session:get-user");
 
@@ -29,7 +27,6 @@ if (!user) {
 const isReadOnlyMedicine =
     user?.rol === "Cajero" && moduleName === "medicamentos";
 const isImmutablePurchase = moduleName === "compras";
-const isImmutableLot = moduleName === "lote";
 const form = document.getElementById("recordForm");
 const tableContainer = document.getElementById("tableContainer");
 const message = document.getElementById("message");
@@ -403,12 +400,6 @@ function renderForm() {
             input.className = "form-select";
             input.add(new Option("Seleccione...", ""));
             field.options.forEach((option) => input.add(new Option(option, option)));
-        } else if (field.type === "medicine-name") {
-            input = document.createElement("input");
-            input.type = "text";
-            input.className = "form-control";
-            input.autocomplete = "off";
-            input.placeholder = "Escriba el nombre del medicamento";
         } else if (field.type === "client-dni") {
             input = document.createElement("input");
             input.type = "text";
@@ -481,6 +472,7 @@ function renderForm() {
             suggestionsDiv.className = "list-group position-absolute start-0 end-0 mx-3 shadow z-3 d-none";
             group.appendChild(suggestionsDiv);
         }
+
         group.append(label, input);
         form.appendChild(group);
     }
@@ -494,418 +486,9 @@ function renderForm() {
 
     if (moduleName === "compras") {
         configureDistributorAutocomplete();
+        createQuickDistributorRegistration();
         loadNextPurchaseInvoiceNumber();
     }
-
-    if (moduleName === "lote") {
-        configureLotForm();
-    }
-}
-
-async function configureLotForm() {
-    const medicineInput = document.getElementById("id_medicamento");
-    const quantityInput = document.getElementById("cantidad_inicial");
-    const purchasePriceInput = document.getElementById("precio_compra");
-    const presentationsGroup = document.getElementById("formas_venta")?.closest("div");
-    const medicineOptions = document.createElement("datalist");
-    medicineOptions.id = "lotMedicineOptions";
-    medicineInput.setAttribute("list", medicineOptions.id);
-    medicineInput.closest("div").appendChild(medicineOptions);
-    createQuickMedicineRegistration();
-
-    if (presentationsGroup) {
-        presentationsGroup.replaceChildren();
-        presentationsGroup.innerHTML = `
-            <label class="form-label fw-semibold">Formas de Venta y Precios</label>
-            <datalist id="lotSaleFormOptions">
-                <option value="Caja"></option>
-                <option value="Unidad"></option>
-                <option value="Frasco"></option>
-                <option value="Blister"></option>
-                <option value="Sobre"></option>
-                <option value="Ampolla"></option>
-            </datalist>
-            <div id="lotPresentations" class="row g-2"></div>
-            <button id="addLotPresentation" type="button"
-                class="btn btn-outline-success btn-sm mt-2">
-                Agregar forma de venta
-            </button>`;
-        document.getElementById("addLotPresentation")
-            .addEventListener("click", () => addLotPresentationRow());
-    }
-
-    medicineInput.addEventListener("input", () => {
-        const typedName = medicineInput.value.trim().toLowerCase();
-        const medicine = lotMedicineCatalog.find((item) =>
-            item.nombre.toLowerCase() === typedName ||
-            item.codigo.toLowerCase() === typedName
-        );
-        const hasPossibleMatch = lotMedicineCatalog.some((item) =>
-            item.nombre.toLowerCase().includes(typedName) ||
-            item.codigo.toLowerCase().includes(typedName)
-        );
-        if (medicine) {
-            selectLotMedicine(medicine);
-        } else {
-            selectedLotMedicine = null;
-            clearLotMedicineDetails();
-            toggleQuickMedicineRegistration(
-                Boolean(typedName) && !hasPossibleMatch
-            );
-        }
-    });
-    quantityInput.addEventListener("input", () => {
-        updateLotDisplayedStock();
-        updateLotTotalPurchasePrice();
-    });
-    purchasePriceInput.addEventListener("input", updateLotTotalPurchasePrice);
-
-    await loadLotMedicineCatalog();
-    renderLotMedicineOptions();
-    renderQuickMedicineLaboratoryOptions();
-    await loadNextLotNumber();
-}
-
-async function loadLotMedicineCatalog() {
-    const [catalog] = await db.query(
-        `SELECT m.id_medicamento, m.codigo, m.nombre, m.stock_total,
-                m.laboratorio, mp.id_presentacion,
-                mp.nombre_presentacion, mp.precio_venta
-         FROM medicamentos m
-         LEFT JOIN medicamento_presentaciones mp
-            ON mp.id_medicamento = m.id_medicamento
-           AND mp.estado = 'Activa'
-         ORDER BY m.nombre, mp.nombre_presentacion`
-    );
-    const medicines = new Map();
-    catalog.forEach((row) => {
-        if (!medicines.has(row.id_medicamento)) {
-            medicines.set(row.id_medicamento, {
-                id_medicamento: row.id_medicamento,
-                codigo: row.codigo,
-                nombre: row.nombre,
-                stock_total: Number(row.stock_total || 0),
-                laboratorio: row.laboratorio || "",
-                presentations: [],
-            });
-        }
-        if (row.id_presentacion) {
-            medicines.get(row.id_medicamento).presentations.push({
-                nombre: row.nombre_presentacion,
-                precio: Number(row.precio_venta),
-            });
-        }
-    });
-    lotMedicineCatalog = [...medicines.values()];
-}
-
-function renderLotMedicineOptions() {
-    const container = document.getElementById("lotMedicineOptions");
-    if (!container) return;
-    container.replaceChildren();
-    lotMedicineCatalog.forEach((medicine) => {
-        const option = document.createElement("option");
-        option.value = medicine.nombre;
-        option.label = `${medicine.codigo} | Stock: ${medicine.stock_total}`;
-        container.appendChild(option);
-    });
-}
-
-function selectLotMedicine(medicine) {
-    selectedLotMedicine = medicine;
-    document.getElementById("id_medicamento").value = medicine.nombre;
-    document.getElementById("laboratorio").value = medicine.laboratorio;
-    renderLotPresentations(medicine.presentations);
-    updateLotDisplayedStock();
-    toggleQuickMedicineRegistration(false);
-}
-
-function createQuickMedicineRegistration() {
-    const container = document.createElement("div");
-    container.id = "quickMedicineRegistration";
-    container.className = "col-12 d-none";
-    container.innerHTML = `
-        <div class="card border-warning-subtle bg-warning-subtle">
-            <div class="card-body">
-                <div class="d-flex flex-wrap justify-content-between align-items-center gap-2">
-                    <div>
-                        <h3 class="h6 mb-1">Medicamento no registrado</h3>
-                        <p class="small text-secondary mb-0">
-                            Puede registrarlo sin salir del ingreso del lote.
-                        </p>
-                    </div>
-                    <button id="showQuickMedicineForm"
-                        class="btn btn-warning btn-sm" type="button">
-                        Registrar nuevo medicamento
-                    </button>
-                </div>
-                <div id="quickMedicineFields" class="row g-3 mt-1 d-none">
-                    <div class="col-12 col-md-6">
-                        <label class="form-label" for="quickMedicineName">Nombre</label>
-                        <input id="quickMedicineName" class="form-control" type="text">
-                    </div>
-                    <div class="col-12 col-md-6">
-                        <label class="form-label" for="quickMedicineLaboratory">Laboratorio</label>
-                        <input id="quickMedicineLaboratory" class="form-control"
-                            type="text" list="quickMedicineLaboratoryOptions"
-                            autocomplete="off"
-                            placeholder="Escriba o seleccione el laboratorio">
-                        <datalist id="quickMedicineLaboratoryOptions"></datalist>
-                    </div>
-                    <div class="col-12 col-md-6">
-                        <label class="form-label" for="quickMedicineCategory">Categoría</label>
-                        <input id="quickMedicineCategory" class="form-control" type="text">
-                    </div>
-                    <div class="col-12 col-md-6">
-                        <label class="form-label" for="quickMedicinePresentation">Presentación</label>
-                        <input id="quickMedicinePresentation" class="form-control" type="text">
-                    </div>
-                    <div class="col-12 col-md-6">
-                        <label class="form-label" for="quickMedicineRestriction">Restricción</label>
-                        <select id="quickMedicineRestriction" class="form-select">
-                            <option value="">Seleccione...</option>
-                            <option value="Sin Receta Medica">Sin Receta Médica</option>
-                            <option value="Con Receta Medica">Con Receta Médica</option>
-                        </select>
-                    </div>
-                    <div class="col-12 col-md-6">
-                        <label class="form-label" for="quickMedicineSaleForm">Forma de venta</label>
-                        <input id="quickMedicineSaleForm" class="form-control"
-                            list="lotSaleFormOptions"
-                            placeholder="Escriba o seleccione">
-                    </div>
-                    <div class="col-12 col-md-6">
-                        <label class="form-label" for="quickMedicineSalePrice">Precio de venta</label>
-                        <input id="quickMedicineSalePrice" class="form-control"
-                            type="number" min="0.01" step="0.01">
-                    </div>
-                    <div class="col-12">
-                        <button id="saveQuickMedicine"
-                            class="btn btn-success" type="button">
-                            Guardar medicamento y continuar lote
-                        </button>
-                    </div>
-                </div>
-            </div>
-        </div>`;
-    form.appendChild(container);
-
-    document.getElementById("showQuickMedicineForm")
-        .addEventListener("click", () => {
-            document.getElementById("quickMedicineName").value =
-                document.getElementById("id_medicamento").value.trim();
-            document.getElementById("quickMedicineFields")
-                .classList.remove("d-none");
-        });
-    document.getElementById("saveQuickMedicine")
-        .addEventListener("click", saveQuickMedicine);
-}
-
-function toggleQuickMedicineRegistration(show) {
-    const container = document.getElementById("quickMedicineRegistration");
-    if (!container) return;
-    container.classList.toggle("d-none", !show);
-    if (!show) {
-        document.getElementById("quickMedicineFields")
-            ?.classList.add("d-none");
-    }
-}
-
-function renderQuickMedicineLaboratoryOptions() {
-    const container = document.getElementById(
-        "quickMedicineLaboratoryOptions"
-    );
-    if (!container) return;
-    container.replaceChildren();
-    const laboratories = [...new Set(
-        lotMedicineCatalog
-            .map((medicine) => medicine.laboratorio.trim())
-            .filter(Boolean)
-    )].sort((first, second) => first.localeCompare(second));
-    laboratories.forEach((laboratory) => {
-        container.appendChild(new Option(laboratory, laboratory));
-    });
-}
-
-async function saveQuickMedicine() {
-    const name = document.getElementById("quickMedicineName").value.trim();
-    const laboratory = document
-        .getElementById("quickMedicineLaboratory").value.trim();
-    const category = document
-        .getElementById("quickMedicineCategory").value.trim();
-    const presentation = document
-        .getElementById("quickMedicinePresentation").value.trim();
-    const restriction = document
-        .getElementById("quickMedicineRestriction").value;
-    const saleForm = document
-        .getElementById("quickMedicineSaleForm").value.trim();
-    const salePrice = Number(
-        document.getElementById("quickMedicineSalePrice").value
-    );
-    const purchasePrice = Number(
-        document.getElementById("precio_compra").value
-    );
-    const allowedSaleForms = [
-        "Caja", "Unidad", "Frasco", "Blister", "Sobre", "Ampolla"
-    ];
-
-    if (!name || !laboratory || !restriction || !saleForm) {
-        showMessage(
-            "Complete nombre, laboratorio, restricción y forma de venta.",
-            true
-        );
-        return;
-    }
-    if (!allowedSaleForms.includes(saleForm)) {
-        showMessage("Seleccione una forma de venta disponible.", true);
-        return;
-    }
-    if (!Number.isFinite(purchasePrice) || purchasePrice < 0) {
-        showMessage("Ingrese primero el precio de compra del lote.", true);
-        return;
-    }
-    if (!Number.isFinite(salePrice) || salePrice <= 0) {
-        showMessage("Ingrese un precio de venta mayor que cero.", true);
-        return;
-    }
-
-    const connection = await db.getConnection();
-    try {
-        await connection.beginTransaction();
-        const [existing] = await connection.execute(
-            `SELECT id_medicamento FROM medicamentos
-             WHERE LOWER(TRIM(nombre)) = LOWER(TRIM(?))
-             LIMIT 1 FOR UPDATE`,
-            [name]
-        );
-        if (existing.length) {
-            throw new Error("El medicamento ya está registrado; selecciónelo de la lista.");
-        }
-        const [nextCodeRows] = await connection.query(
-            `SELECT COALESCE(MAX(CAST(SUBSTRING(codigo, 4) AS UNSIGNED)), 0) + 1
-                AS siguiente
-             FROM medicamentos
-             WHERE codigo LIKE 'MED%'`
-        );
-        const code = `MED${String(nextCodeRows[0].siguiente).padStart(3, "0")}`;
-        const [result] = await connection.execute(
-            `INSERT INTO medicamentos
-                (codigo, nombre, categoria, presentacion, precio_compra,
-                 precio_venta, stock_total, restriccion, laboratorio,
-                 forma_venta, estado)
-             VALUES (?, ?, ?, ?, ?, ?, 0, ?, ?, ?, 'Disponible')`,
-            [
-                code, name, category || null, presentation || null,
-                purchasePrice, salePrice, restriction, laboratory, saleForm,
-            ]
-        );
-        await connection.execute(
-            `INSERT INTO medicamento_presentaciones
-                (id_medicamento, nombre_presentacion, precio_venta, estado)
-             VALUES (?, ?, ?, 'Activa')`,
-            [result.insertId, saleForm, salePrice]
-        );
-        await connection.commit();
-
-        await loadLotMedicineCatalog();
-        renderLotMedicineOptions();
-        renderQuickMedicineLaboratoryOptions();
-        const medicine = lotMedicineCatalog.find(
-            (item) => item.id_medicamento === result.insertId
-        );
-        selectLotMedicine(medicine);
-        showMessage("Medicamento registrado. Puede continuar con el lote.");
-    } catch (error) {
-        await connection.rollback();
-        showMessage(error.message, true);
-    } finally {
-        connection.release();
-    }
-}
-
-function clearLotMedicineDetails() {
-    document.getElementById("stock_total").value = "";
-    document.getElementById("laboratorio").value = "";
-    document.getElementById("lotPresentations")?.replaceChildren();
-}
-
-function updateLotDisplayedStock() {
-    const quantity = Number(document.getElementById("cantidad_inicial")?.value || 0);
-    document.getElementById("stock_total").value = selectedLotMedicine
-        ? selectedLotMedicine.stock_total + Math.max(0, quantity)
-        : "";
-}
-
-function updateLotTotalPurchasePrice() {
-    const quantity = Number(
-        document.getElementById("cantidad_inicial")?.value || 0
-    );
-    const unitPrice = Number(
-        document.getElementById("precio_compra")?.value || 0
-    );
-    const totalInput = document.getElementById("precio_compra_total");
-    if (!totalInput) return;
-    totalInput.value =
-        quantity > 0 && unitPrice >= 0
-            ? (quantity * unitPrice).toFixed(2)
-            : "";
-}
-
-function renderLotPresentations(presentations = []) {
-    document.getElementById("lotPresentations").replaceChildren();
-    presentations.forEach((presentation) => {
-        addLotPresentationRow(presentation.nombre, presentation.precio);
-    });
-    if (!presentations.length) addLotPresentationRow();
-}
-
-function addLotPresentationRow(name = "", price = "") {
-    const container = document.getElementById("lotPresentations");
-    if (!container) return;
-    const row = document.createElement("div");
-    row.className = "col-12 d-flex gap-2 lot-presentation-row";
-    const nameInput = document.createElement("input");
-    nameInput.className = "form-control lot-presentation-name";
-    nameInput.setAttribute("list", "lotSaleFormOptions");
-    nameInput.setAttribute("autocomplete", "off");
-    nameInput.placeholder = "Escriba o seleccione la forma de venta";
-    nameInput.value = name;
-    const priceInput = document.createElement("input");
-    priceInput.className = "form-control lot-presentation-price";
-    priceInput.type = "number";
-    priceInput.min = "0.01";
-    priceInput.step = "0.01";
-    priceInput.placeholder = "Precio";
-    priceInput.value = price;
-    const remove = document.createElement("button");
-    remove.className = "btn btn-outline-danger";
-    remove.type = "button";
-    remove.textContent = "Quitar";
-    remove.addEventListener("click", () => row.remove());
-    row.append(nameInput, priceInput, remove);
-    container.appendChild(row);
-}
-
-function getLotPresentations() {
-    return [...document.querySelectorAll(".lot-presentation-row")]
-        .map((row) => ({
-            nombre: row.querySelector(".lot-presentation-name").value.trim(),
-            precio: Number(row.querySelector(".lot-presentation-price").value),
-        }))
-        .filter((presentation) => presentation.nombre || presentation.precio);
-}
-
-async function loadNextLotNumber() {
-    if (editingId !== null) return;
-    const [result] = await db.query(
-        `SELECT COALESCE(
-            MAX(CAST(SUBSTRING(numero_lote, 5) AS UNSIGNED)), 0
-         ) + 1 AS siguiente
-         FROM lote
-         WHERE numero_lote LIKE 'LOT-%'`
-    );
-    document.getElementById("numero_lote").value =
-        `LOT-${String(result[0].siguiente).padStart(4, "0")}`;
 }
 
 
@@ -1728,7 +1311,6 @@ async function loadRows() {
 
         const usesClientDni = moduleName === "ventas";
         const usesDistributor = moduleName === "compras";
-        const usesLotMedicine = moduleName === "lote";
         let join = "";
         if (usesClientDni) {
             join = `LEFT JOIN clientes
@@ -1737,9 +1319,6 @@ async function loadRows() {
             join = `LEFT JOIN distribuidores
                     ON compras.id_distribuidor =
                          distribuidores.id_distribuidor`;
-        } else if (usesLotMedicine) {
-            join = `INNER JOIN medicamentos
-                    ON lote.id_medicamento = medicamentos.id_medicamento`;
         }
         const clientIdentity = usesClientDni
             ? ", clientes.identidad AS identidad_cliente"
@@ -1747,18 +1326,10 @@ async function loadRows() {
         const distributorName = usesDistributor
             ? ", distribuidores.nombre AS nombre_distribuidor"
             : "";
-        const lotMedicineName = usesLotMedicine
-            ? ", medicamentos.nombre AS nombre_medicamento"
-            : "";
-        const lotCalculatedFields = usesLotMedicine
-            ? `, medicamentos.stock_total AS stock_total,
-                 (lote.cantidad_inicial * lote.precio_compra)
-                    AS precio_compra_total`
-            : "";
 
         [rows] = await db.query(
             `SELECT ${columns.join(", ")}${clientIdentity}
-                    ${distributorName}${lotMedicineName}${lotCalculatedFields}
+                    ${distributorName}
              FROM ${config.table}
              ${join}
              ORDER BY ${config.table}.${config.id} DESC`
@@ -1781,7 +1352,7 @@ function renderTable(records = rows) {
     const fields = config.fields.filter((field) => {
         return (
             field.type !== "password" &&
-            (!field.virtual || field.showInTable) &&
+            !field.virtual &&
             (!field.name.startsWith("id_") || field.showInTable)
         );
     });
@@ -1803,7 +1374,7 @@ function renderTable(records = rows) {
         header.appendChild(th); 
     });
     
-    if (!isReadOnlyMedicine && !isImmutablePurchase && !isImmutableLot) {
+    if (!isReadOnlyMedicine && !isImmutablePurchase) {
         const actionsHeader = document.createElement("th");
         actionsHeader.textContent = "Acciones";
         header.appendChild(actionsHeader);
@@ -1822,15 +1393,9 @@ function renderTable(records = rows) {
         }
         fields.forEach((field) => {
             const column = field.displayName || field.name;
-            const value = row[column];
-            tr.insertCell().textContent =
-                moduleName === "lote" &&
-                field.name === "precio_compra_total" &&
-                value != null
-                    ? `L ${Number(value).toFixed(2)}`
-                    : formatValue(value);
+            tr.insertCell().textContent = formatValue(row[column]);
         });
-        if (!isReadOnlyMedicine && !isImmutablePurchase && !isImmutableLot) {
+        if (!isReadOnlyMedicine && !isImmutablePurchase) {
             const actions = tr.insertCell();
             const edit = document.createElement("button");
             edit.className = "btn btn-outline-success btn-sm me-2";
@@ -1935,15 +1500,6 @@ function getData() {
         }
     }
 
-    if (moduleName === "lote") {
-        if (!selectedLotMedicine) {
-            throw new Error(
-                "Seleccione un medicamento de la lista de sugerencias."
-            );
-        }
-        data.id_medicamento = selectedLotMedicine.id_medicamento;
-    }
-
     return data;
 }
 
@@ -1974,14 +1530,6 @@ async function saveRecord(event) {
             showMessage(
                 "Compra, lote e inventario registrados correctamente."
             );
-            clearForm();
-            await loadRows();
-            return;
-        }
-
-        if (moduleName === "lote") {
-            await saveLotTransaction(data);
-            showMessage("Lote e inventario registrados correctamente.");
             clearForm();
             await loadRows();
             return;
@@ -2093,94 +1641,6 @@ async function saveRecord(event) {
         await loadRows();
     } catch (error) {
         showMessage(error.message, true);
-    }
-}
-
-async function saveLotTransaction(data) {
-    if (editingId !== null) {
-        throw new Error(
-            "Los lotes ingresados no se editan; registre un nuevo ingreso."
-        );
-    }
-
-    const quantity = Number(data.cantidad_inicial);
-    if (!Number.isInteger(quantity) || quantity <= 0) {
-        throw new Error("La cantidad a ingresar debe ser un número entero mayor que cero.");
-    }
-
-    const presentations = getLotPresentations();
-    const allowedSaleForms = [
-        "Caja", "Unidad", "Frasco", "Blister", "Sobre", "Ampolla"
-    ];
-    if (!presentations.length) {
-        throw new Error("Agregue al menos una forma de venta con su precio.");
-    }
-    if (presentations.some((item) =>
-        !item.nombre || !Number.isFinite(item.precio) || item.precio <= 0
-    )) {
-        throw new Error("Complete cada forma de venta y coloque un precio mayor que cero.");
-    }
-    if (presentations.some((item) => !allowedSaleForms.includes(item.nombre))) {
-        throw new Error("Seleccione una forma de venta de las opciones disponibles.");
-    }
-
-    const connection = await db.getConnection();
-    try {
-        await connection.beginTransaction();
-        const [duplicate] = await connection.execute(
-            `SELECT id_lote FROM lote WHERE numero_lote = ? LIMIT 1 FOR UPDATE`,
-            [data.numero_lote]
-        );
-        if (duplicate.length) {
-            await loadNextLotNumber();
-            throw new Error(
-                "El número de lote ya existía. Se generó uno nuevo; intente guardar otra vez."
-            );
-        }
-
-        await connection.execute(
-            `INSERT INTO lote
-                (id_medicamento, numero_lote, cantidad_inicial,
-                 cantidad_disponible, fecha_fabricacion,
-                 fecha_vencimiento, precio_compra, estado)
-             VALUES (?, ?, ?, ?, ?, ?, ?, 'Disponible')`,
-            [
-                data.id_medicamento,
-                data.numero_lote,
-                quantity,
-                quantity,
-                data.fecha_fabricacion,
-                data.fecha_vencimiento,
-                data.precio_compra,
-            ]
-        );
-        await connection.execute(
-            `UPDATE medicamentos
-             SET stock_total = stock_total + ?, estado = 'Disponible'
-             WHERE id_medicamento = ?`,
-            [quantity, data.id_medicamento]
-        );
-        for (const presentation of presentations) {
-            await connection.execute(
-                `INSERT INTO medicamento_presentaciones
-                    (id_medicamento, nombre_presentacion, precio_venta, estado)
-                 VALUES (?, ?, ?, 'Activa')
-                 ON DUPLICATE KEY UPDATE
-                    precio_venta = VALUES(precio_venta),
-                    estado = 'Activa'`,
-                [
-                    data.id_medicamento,
-                    presentation.nombre,
-                    presentation.precio,
-                ]
-            );
-        }
-        await connection.commit();
-    } catch (error) {
-        await connection.rollback();
-        throw error;
-    } finally {
-        connection.release();
     }
 }
 
@@ -2327,20 +1787,6 @@ async function savePurchaseWithLot(data) {
 
     try {
         await connection.beginTransaction();
-        const [medicines] = await connection.execute(
-            `SELECT id_medicamento
-             FROM medicamentos
-             WHERE id_medicamento = ?
-             LIMIT 1
-             FOR UPDATE`,
-            [data.id_medicamento]
-        );
-        if (!medicines.length) {
-            throw new Error(
-                "El medicamento no está registrado. Regístrelo primero."
-            );
-        }
-
         const [distributors] = await connection.execute(
             `SELECT id_distribuidor
              FROM distribuidores
@@ -2738,16 +2184,9 @@ function clearForm() {
         loadSaleMedicineCatalog();
         loadNextInvoiceNumber();
     }
-
-    if (moduleName === "lote") {
-        selectedLotMedicine = null;
-        clearLotMedicineDetails();
-        toggleQuickMedicineRegistration(false);
-        loadLotMedicineCatalog().then(() => {
-            renderLotMedicineOptions();
-            renderQuickMedicineLaboratoryOptions();
-        });
-        loadNextLotNumber();
+    if (moduleName === "compras") {
+        toggleQuickDistributorRegistration(false);
+        loadNextPurchaseInvoiceNumber();
     }
 }
 
@@ -2770,6 +2209,7 @@ function configureDistributorAutocomplete() {
 
     distributorInput.addEventListener("input", async () => {
         const query = distributorInput.value.trim();
+        toggleQuickDistributorRegistration(false);
         if (query.length === 0) {
             suggestionsDiv.classList.add("d-none");
             return;
@@ -2785,6 +2225,12 @@ function configureDistributorAutocomplete() {
             );
 
             renderDistributorSuggestions(results, suggestionsDiv, distributorInput);
+            const exactMatch = results.some(
+                (item) =>
+                    item.nombre.trim().toLocaleLowerCase("es") ===
+                    query.toLocaleLowerCase("es")
+            );
+            toggleQuickDistributorRegistration(!exactMatch);
         } catch (error) {
             console.error("Error buscando distribuidores:", error);
         }
@@ -2832,12 +2278,117 @@ function renderDistributorSuggestions(distributors, suggestionsDiv, inputElement
             if (emailInput) emailInput.value = dist.correo || "";
 
             suggestionsDiv.classList.add("d-none");
+            toggleQuickDistributorRegistration(false);
         });
 
         suggestionsDiv.appendChild(item);
     });
 
     suggestionsDiv.classList.remove("d-none");
+}
+
+function createQuickDistributorRegistration() {
+    const container = document.createElement("div");
+    container.id = "quickDistributorRegistration";
+    container.className = "col-12 d-none";
+    container.innerHTML = `
+        <div class="card border-warning-subtle bg-warning-subtle">
+            <div class="card-body">
+                <div class="d-flex flex-wrap justify-content-between align-items-center gap-2">
+                    <div>
+                        <h3 class="h6 mb-1">Laboratorio o proveedor no registrado</h3>
+                        <p class="small text-secondary mb-0">
+                            Puede registrarlo sin salir de la compra.
+                        </p>
+                    </div>
+                    <button id="showQuickDistributorForm"
+                        class="btn btn-warning btn-sm" type="button">
+                        Registrar nuevo proveedor
+                    </button>
+                </div>
+                <div id="quickDistributorFields" class="row g-3 mt-1 d-none">
+                    <div class="col-12 col-md-6">
+                        <label class="form-label" for="quickDistributorName">Nombre</label>
+                        <input id="quickDistributorName" class="form-control" type="text">
+                    </div>
+                    <div class="col-12 col-md-6">
+                        <label class="form-label" for="quickDistributorPhone">Teléfono</label>
+                        <input id="quickDistributorPhone" class="form-control" type="text">
+                    </div>
+                    <div class="col-12 col-md-6">
+                        <label class="form-label" for="quickDistributorEmail">Correo</label>
+                        <input id="quickDistributorEmail" class="form-control" type="email">
+                    </div>
+                    <div class="col-12 col-md-6">
+                        <label class="form-label" for="quickDistributorAddress">Dirección</label>
+                        <input id="quickDistributorAddress" class="form-control" type="text">
+                    </div>
+                    <div class="col-12">
+                        <button id="saveQuickDistributor"
+                            class="btn btn-success" type="button">
+                            Guardar proveedor y continuar compra
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>`;
+    form.appendChild(container);
+
+    document.getElementById("showQuickDistributorForm")
+        .addEventListener("click", () => {
+            document.getElementById("quickDistributorName").value =
+                document.getElementById("id_distribuidor").value.trim();
+            document.getElementById("quickDistributorFields")
+                .classList.remove("d-none");
+        });
+    document.getElementById("saveQuickDistributor")
+        .addEventListener("click", saveQuickDistributor);
+}
+
+function toggleQuickDistributorRegistration(show) {
+    const container = document.getElementById("quickDistributorRegistration");
+    if (!container) return;
+    container.classList.toggle("d-none", !show);
+    if (!show) {
+        document.getElementById("quickDistributorFields")
+            ?.classList.add("d-none");
+    }
+}
+
+async function saveQuickDistributor() {
+    const name = document.getElementById("quickDistributorName").value.trim();
+    const phone = document.getElementById("quickDistributorPhone").value.trim();
+    const email = document.getElementById("quickDistributorEmail").value.trim();
+    const address = document.getElementById("quickDistributorAddress").value.trim();
+
+    if (!name || !phone || !email) {
+        showMessage(
+            "Complete el nombre, teléfono y correo del proveedor.",
+            true
+        );
+        return;
+    }
+
+    try {
+        await db.execute(
+            `INSERT INTO distribuidores
+                (nombre, telefono, correo, direccion, estado)
+             VALUES (?, ?, ?, ?, 'Activo')`,
+            [name, phone, email, address || null]
+        );
+        document.getElementById("id_distribuidor").value = name;
+        document.getElementById("telefono_distribuidor").value = phone;
+        document.getElementById("correo_distribuidor").value = email;
+        toggleQuickDistributorRegistration(false);
+        showMessage("Proveedor registrado y seleccionado para la compra.");
+    } catch (error) {
+        showMessage(
+            error.code === "ER_DUP_ENTRY"
+                ? "Ya existe un proveedor con ese nombre."
+                : `No se pudo registrar el proveedor: ${error.message}`,
+            true
+        );
+    }
 }
 
 /* ====================================================================================
