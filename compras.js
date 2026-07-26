@@ -8,7 +8,7 @@ module.exports = {
             name: "numero_factura",
             label: "Número de factura",
             autoInvoice: true,
-            hidden: true,
+            readOnly: true,    
             required: true
         },
         {
@@ -54,28 +54,12 @@ module.exports = {
             required: true
         },
         {
-            name: "cantidad",
-            label: "Cantidad",
-            type: "number",
-            min: 1,
-            required: true
-        },
-        {
-            name: "precio_unitario",
-            label: "Precio unitario",
-            type: "number",
-            min: 0,
-            step: "0.01",
-            required: true
-        },
-        {
             name: "total",
-            label: "Total",
+            label: "Total de la compra (Lps.)",
+            placeholder: "L. 0.00",
             type: "number",
             min: 0,
             step: "0.01",
-            automaticTotal: true,
-            readOnly: true,
             required: true
         },
         {
@@ -87,12 +71,9 @@ module.exports = {
         },
         {
             name: "estado",
-            label: "Estado",
+            label: "Condición de la compra",
             type: "select",
-            options: ["Pendiente", "Recibida", "Cancelada"]
+            options: ["A Credito", "Cancelado"]
         },
-        { name: "numero_lote_compra", label: "Número de lote", required: true, virtual: true, lotField: true },
-        { name: "fecha_fabricacion_lote", label: "Fecha de fabricación", type: "date", required: true, virtual: true, lotField: true },
-        { name: "fecha_vencimiento_lote", label: "Fecha de vencimiento", type: "date", required: true, virtual: true, lotField: true }
     ]
 };

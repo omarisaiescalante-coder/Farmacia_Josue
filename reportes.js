@@ -15,6 +15,7 @@ if (!user || user.rol !== "Administrador") {
         `${user.nombre} ${user.apellido} - ${user.rol}`;
 
     if (reportType === "ventas") initializeSalesReport();
+    else if (reportType === "compras") initializePurchasesReport();
     else initializeExpirationReport();
 }
 
@@ -22,6 +23,8 @@ document.getElementById("backButton").addEventListener("click", () => {
     window.location.href =
         reportType === "ventas"
             ? "ventas.html"
+            : reportType === "compras"
+            ? "compras.html"
             : "medicamentos.html";
 });
 
@@ -39,6 +42,8 @@ async function generatePdf() {
         const suggestedName =
             reportType === "ventas"
                 ? `reporte-ventas-${document.getElementById("salesStartDate").value}-${document.getElementById("salesEndDate").value}.pdf`
+                : reportType === "compras"
+                ? `reporte-compras-${document.getElementById("purchasesStartDate").value}-${document.getElementById("purchasesEndDate").value}.pdf`
                 : `reporte-vencimientos-${document.getElementById("expirationStartDate").value}-${document.getElementById("expirationEndDate").value}.pdf`;
 
         const result = await ipcRenderer.invoke(
@@ -110,6 +115,75 @@ function getNextDate(date) {
         String(value.getMonth() + 1).padStart(2, "0"),
         String(value.getDate()).padStart(2, "0"),
     ].join("-");
+}
+
+function initializePurchasesReport() {
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = String(now.getMonth() + 1).padStart(2, "0");
+    const lastDay = new Date(year, now.getMonth() + 1, 0).getDate();
+
+    document.getElementById("purchasesStartDate").value =
+        `${year}-${month}-01`;
+    document.getElementById("purchasesEndDate").value =
+        `${year}-${month}-${String(lastDay).padStart(2, "0")}`;
+
+    document
+        .getElementById("generatePurchasesButton")
+        .addEventListener("click", loadPurchasesReport);
+    loadPurchasesReport();
+}
+
+async function loadPurchasesReport() {
+    try {
+        const start = document.getElementById("purchasesStartDate").value;
+        const end = document.getElementById("purchasesEndDate").value;
+
+        if (!start || !end) {
+            throw new Error("Seleccione la fecha inicial y la fecha final.");
+        }
+        if (end < start) {
+            throw new Error("La fecha final no puede ser anterior a la fecha inicial.");
+        }
+
+        const endExclusive = getNextDate(end);
+
+        // Consulta del total invertido en compras en el periodo
+        const [[comprasTotal]] = await db.query(
+            `SELECT COALESCE(SUM(total), 0) total
+             FROM compras
+             WHERE fecha_compra >= ?
+                AND fecha_compra < ?`,
+            [start, endExclusive]
+        );
+
+        // Detalle agrupado o listado de compras por fecha / proveedor
+        const [rows] = await db.query(
+            `SELECT c.fecha_compra, d.nombre AS proveedor, c.numero_factura, c.total
+             FROM compras c
+             LEFT JOIN distribuidores d ON c.id_distribuidor = d.id_distribuidor
+             WHERE c.fecha_compra >= ?
+                AND c.fecha_compra < ?
+             ORDER BY c.fecha_compra`,
+            [start, endExclusive]
+        );
+
+        document.getElementById("periodStart").textContent = formatDate(start);
+        document.getElementById("periodEnd").textContent = formatDate(end);
+        document.getElementById("totalCompras").textContent = currency(comprasTotal.total);
+
+        renderTable(
+            ["Fecha", "Proveedor", "Nº Factura", "Total"],
+            rows.map((row) => [
+                formatDate(row.fecha_compra),
+                row.proveedor || "Sin proveedor",
+                row.numero_factura || "N/D",
+                currency(row.total),
+            ])
+        );
+    } catch (error) {
+        showError(error);
+    }
 }
 
 async function loadSalesReport() {

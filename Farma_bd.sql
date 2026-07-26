@@ -126,23 +126,19 @@ fecha_registro DATETIME DEFAULT CURRENT_TIMESTAMP
 -- -------------------------------------------------------------------
 
 CREATE TABLE Compras (
-
-id_compra INT AUTO_INCREMENT PRIMARY KEY,
-numero_factura VARCHAR(50) UNIQUE NOT NULL,
-id_usuario INT NOT NULL,
-id_medicamento INT NOT NULL,
-id_distribuidor INT NOT NULL,
-fecha_compra DATE NOT NULL,
-cantidad INT NOT NULL,
-precio_unitario DECIMAL(10,2) NOT NULL,
-total DECIMAL(10,2) NOT NULL,
-metodo_pago ENUM('Efectivo','Tarjeta','Transferencia','Credito') NOT NULL,
-estado ENUM('Pendiente','Recibida','Cancelada') DEFAULT 'Pendiente',
-fecha_registro DATETIME DEFAULT CURRENT_TIMESTAMP,
-FOREIGN KEY (id_usuario) REFERENCES usuarios(id_usuario),
-FOREIGN KEY (id_medicamento) REFERENCES medicamentos(id_medicamento),
-FOREIGN KEY (id_distribuidor) REFERENCES distribuidores(id_distribuidor)
-
+    id_compra INT AUTO_INCREMENT PRIMARY KEY,
+    numero_factura VARCHAR(50) UNIQUE NOT NULL,
+    id_usuario INT NOT NULL,
+    id_medicamento INT NOT NULL,
+    id_distribuidor INT NOT NULL,
+    fecha_compra DATE NOT NULL,
+    total DECIMAL(10,2) NOT NULL,
+    metodo_pago ENUM('Efectivo','Tarjeta','Transferencia','Credito') NOT NULL,
+    estado ENUM('A Credito', 'Cancelado') NOT NULL DEFAULT 'A Credito',
+    fecha_registro DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (id_usuario) REFERENCES usuarios(id_usuario),
+    FOREIGN KEY (id_medicamento) REFERENCES medicamentos(id_medicamento),
+    FOREIGN KEY (id_distribuidor) REFERENCES distribuidores(id_distribuidor)
 );
 
 -- -------------------------------------------------------------------
@@ -333,12 +329,12 @@ UPDATE Distribuidores SET telefono = '32548545', correo = 'DistribuidoraMK@gmail
 UPDATE Distribuidores SET telefono = '29154815', correo = 'FarmacéuticaCalox@gmail.com', direccion = 'Calle Norte' WHERE id_distribuidor = 4;
 
 INSERT INTO Compras
-(id_compra, numero_factura, id_usuario, id_medicamento, id_distribuidor, fecha_compra, cantidad, precio_unitario, total, metodo_pago, estado)
+(id_compra, numero_factura, id_usuario, id_medicamento, id_distribuidor, fecha_compra, total, metodo_pago, estado)
 VALUES
-(1, 'COM-0001', 1, 1, 1, '2026-07-15', 100, 35.50, 3550.00, 'Transferencia', 'Recibida'),
-(2, 'COM-0002', 4, 2, 2, '2026-07-16', 80, 48.75, 3900.00, 'Credito', 'Recibida'),
-(3, 'COM-0003', 3, 3, 3, '2026-07-18', 60, 95.00, 5700.00, 'Transferencia', 'Pendiente'),
-(4, 'COM-0004', 1, 4, 4, '2026-07-20', 75, 28.00, 2100.00, 'Efectivo', 'Recibida');
+(1, 'COM-0001', 1, 1, 1, '2026-07-15', 3550.00, 'Transferencia', 'A Credito'),
+(2, 'COM-0002', 4, 2, 2, '2026-07-16', 3900.00, 'Credito', 'A Credito'),
+(3, 'COM-0003', 3, 3, 3, '2026-07-18', 5700.00, 'Transferencia', 'Cancelado'),
+(4, 'COM-0004', 1, 4, 4, '2026-07-20', 2100.00, 'Efectivo', 'A Credito');
 
 
 -- =========================================================
