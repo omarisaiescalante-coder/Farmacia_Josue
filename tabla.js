@@ -1,4 +1,5 @@
 const db = require("./database").promise();
+const { ipcRenderer } = require("electron");
 
 const moduleName = document.body.dataset.module;
 const config = require(`./${moduleName}.js`);
@@ -14,7 +15,15 @@ let saleItems = [];
 let medicineCatalog = [];
 let selectedSaleMedicineId = null;
 const SALES_TAX_RATE = 0.15;
-const user = JSON.parse(sessionStorage.getItem("usuarioActivo") || "null");
+let user = ipcRenderer.sendSync("session:get-user");
+
+if (!user) {
+    try {
+        user = JSON.parse(sessionStorage.getItem("usuarioActivo") || "null");
+    } catch {
+        sessionStorage.removeItem("usuarioActivo");
+    }
+}
 const isReadOnlyMedicine =
     user?.rol === "Cajero" && moduleName === "medicamentos";
 const isImmutablePurchase = moduleName === "compras";
@@ -356,6 +365,7 @@ if (!user || !permissions[user.rol]?.includes(moduleName)) {
 document.getElementById("backButton").addEventListener("click", () => { window.location.href = "index.html"; });
 document.getElementById("logoutButton").addEventListener("click", () => {
     sessionStorage.removeItem("usuarioActivo");
+    ipcRenderer.send("session:clear-user");
     window.location.href = "index.html";
 });
 document.getElementById("clearButton").addEventListener("click", clearForm);
@@ -2277,8 +2287,6 @@ function renderDistributorSuggestions(distributors, suggestionsDiv, inputElement
 
     suggestionsDiv.classList.remove("d-none");
 }
-<<<<<<< HEAD
-=======
 
 /* ====================================================================================
 Función para cargar automáticamente el siguiente número de factura en Compras
@@ -2313,4 +2321,3 @@ async function loadNextPurchaseInvoiceNumber() {
         console.error("No se pudo generar el número de factura de compra");
     }
 }
->>>>>>> d3ca05591c4c4b818fd45a4da86acd34a6e00830

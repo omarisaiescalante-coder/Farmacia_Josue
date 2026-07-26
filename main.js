@@ -6,6 +6,20 @@ const {
 } = require('electron');
 const fs = require('fs');
 
+let activeUser = null;
+
+ipcMain.on('session:get-user', (event) => {
+    event.returnValue = activeUser;
+});
+
+ipcMain.on('session:set-user', (_event, user) => {
+    activeUser = user || null;
+});
+
+ipcMain.on('session:clear-user', () => {
+    activeUser = null;
+});
+
 function createWindow() {
     const win = new BrowserWindow({
         width: 1280,

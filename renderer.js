@@ -1,4 +1,5 @@
 const db = require("./database").promise();
+const { ipcRenderer } = require("electron");
 
 const modules = {
     usuarios: require("./usuarios"),
@@ -320,6 +321,7 @@ loginForm.addEventListener("submit", async (event) => {
 
         const user = rows[0];
         sessionStorage.setItem("usuarioActivo", JSON.stringify(user));
+        ipcRenderer.send("session:set-user", user);
 
         if (rememberUser.checked) {
             localStorage.setItem("usuarioRecordado", username);
@@ -340,6 +342,7 @@ loginForm.addEventListener("submit", async (event) => {
 
 document.getElementById("logoutBtn").addEventListener("click", () => {
     sessionStorage.removeItem("usuarioActivo");
+    ipcRenderer.send("session:clear-user");
     appScreen.classList.add("d-none");
     loginScreen.classList.remove("d-none");
     loginForm.reset();
@@ -357,12 +360,14 @@ togglePassword.addEventListener("click", () => {
 loginUser.addEventListener("input", clearError);
 loginPassword.addEventListener("input", clearError);
 
-let savedSession = null;
+let savedSession = ipcRenderer.sendSync("session:get-user");
 
-try {
-    savedSession = JSON.parse(sessionStorage.getItem("usuarioActivo") || "null");
-} catch {
-    sessionStorage.removeItem("usuarioActivo");
+if (!savedSession) {
+    try {
+        savedSession = JSON.parse(sessionStorage.getItem("usuarioActivo") || "null");
+    } catch {
+        sessionStorage.removeItem("usuarioActivo");
+    }
 }
 
 if (savedSession) {
