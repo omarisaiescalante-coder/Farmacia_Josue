@@ -1660,6 +1660,12 @@ async function loadRows() {
             `${config.table}.${config.id}`,
             ...fields.map((field) => `${config.table}.${field.name}`),
         ];
+        // El stock se administra mediante lotes, compras y ventas, por lo que no
+        // forma parte del formulario de medicamentos. Aun así debe incluirse en
+        // la consulta para que las tarjetas muestren el inventario real.
+        if (moduleName === "medicamentos") {
+            columns.push("medicamentos.stock_total");
+        }
 
         const usesClientDni = moduleName === "ventas";
         const usesDistributor = moduleName === "compras";
