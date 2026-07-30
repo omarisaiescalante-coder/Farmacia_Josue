@@ -858,6 +858,98 @@ body[data-report] .table > tbody > tr > td {
     box-shadow: 0 26px 70px rgba(58, 45, 8, 0.3);
 }
 
+.delete-confirm-dialog {
+    width: min(92vw, 470px);
+    max-width: none;
+    padding: 0;
+    border: 0;
+    border-radius: 1.2rem;
+    background: transparent;
+    box-shadow: 0 26px 70px rgba(80, 20, 25, 0.32);
+}
+
+.delete-confirm-dialog::backdrop {
+    background: rgba(23, 37, 34, 0.58);
+    backdrop-filter: blur(4px);
+}
+
+.delete-confirm-card {
+    overflow: hidden;
+    border-radius: inherit;
+    background: #fff;
+}
+
+.delete-confirm-header {
+    display: flex;
+    align-items: center;
+    gap: 0.9rem;
+    padding: 1.2rem 1.35rem;
+    color: #fff;
+    background: linear-gradient(135deg, #b4232f, #dc3545);
+}
+
+.delete-confirm-icon {
+    display: grid;
+    flex: 0 0 46px;
+    width: 46px;
+    height: 46px;
+    place-items: center;
+    border: 1px solid rgba(255, 255, 255, 0.32);
+    border-radius: 0.9rem;
+    background: rgba(255, 255, 255, 0.14);
+}
+
+.delete-confirm-icon svg {
+    width: 24px;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 1.8;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+}
+
+.delete-confirm-header strong,
+.delete-confirm-eyebrow {
+    display: block;
+}
+
+.delete-confirm-header strong {
+    font-size: 1.08rem;
+}
+
+.delete-confirm-eyebrow {
+    display: block;
+    margin-bottom: 0.12rem;
+    font-size: 0.7rem;
+    font-weight: 800;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    opacity: 0.82;
+}
+
+.delete-confirm-body {
+    padding: 1.25rem 1.35rem;
+    color: #263b36;
+}
+
+.delete-confirm-body p {
+    margin: 0 0 0.3rem;
+    font-weight: 700;
+}
+
+.delete-confirm-body small {
+    color: #6c757d;
+}
+
+.delete-confirm-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 0.65rem;
+    padding: 1rem 1.35rem;
+    border-top: 1px solid #e6ecea;
+    background: #f8faf9;
+}
+
 .sale-stock-option {
     border-left-width: 5px !important;
 }
