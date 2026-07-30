@@ -8,6 +8,7 @@ const modules = {
     ventas: require("./ventas"),
     compras: require("./compras"),
     lote: require("./lote"),
+    facturas: require("./facturas"),
 };
 
 const permissions = {
@@ -17,19 +18,21 @@ const permissions = {
         "clientes",
         "compras",
         "lote",
+        "facturas",
         "usuarios",
     ],
     Cajero: [
         "ventas",
         "medicamentos",
         "clientes",
+        "facturas",
     ],
 };
 
 const navigationGroups = [
     {
         label: "Operación",
-        modules: ["ventas", "clientes"],
+        modules: ["ventas", "facturas", "clientes"],
     },
     {
         label: "Inventario",
@@ -45,6 +48,10 @@ const moduleIcons = {
     ventas: `
         <path d="M5 3h14v18l-3-2-4 2-4-2-3 2V3Z"/>
         <path d="M8 8h8M8 12h5"/>
+    `,
+    facturas: `
+        <path d="M5 3h14v18l-3-2-4 2-4-2-3 2V3Z"/>
+        <path d="M8 8h8M8 12h8M8 16h5"/>
     `,
     clientes: `
         <circle cx="9" cy="8" r="3"/>

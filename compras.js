@@ -31,6 +31,9 @@ module.exports = {
         {
             name: "telefono_distribuidor",
             label: "Teléfono del distribuidor",
+            exactLength: 9,
+            format: "phone",
+            placeholder: "Ej. 9999-9999",
             virtual: true,
             required: true
         },

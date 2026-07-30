@@ -4,8 +4,8 @@ const { ipcRenderer } = require("electron");
 const moduleName = document.body.dataset.module;
 const config = require(`./${moduleName}.js`);
 const permissions = {
-    Administrador: ["usuarios", "clientes", "medicamentos", "ventas", "compras", "lote", "detalles_venta", "movimientos_puntos"],
-    Cajero: ["clientes", "medicamentos", "ventas", "detalles_venta", "movimientos_puntos"],
+    Administrador: ["usuarios", "clientes", "medicamentos", "ventas", "compras", "lote", "facturas", "detalles_venta", "movimientos_puntos"],
+    Cajero: ["clientes", "medicamentos", "ventas", "facturas", "detalles_venta", "movimientos_puntos"],
 };
 
 let editingId = null;
@@ -16,6 +16,7 @@ let medicineCatalog = [];
 let selectedSaleMedicineId = null;
 let lotMedicineCatalog = [];
 let selectedLotMedicine = null;
+let messageTimer = null;
 const SALES_TAX_RATE = 0.15;
 let user = ipcRenderer.sendSync("session:get-user");
 
@@ -30,6 +31,7 @@ const isReadOnlyMedicine =
     user?.rol === "Cajero" && moduleName === "medicamentos";
 const isImmutablePurchase = moduleName === "compras";
 const isImmutableLot = moduleName === "lote";
+const isReadOnlyModule = Boolean(config.readOnly);
 const form = document.getElementById("recordForm");
 const tableContainer = document.getElementById("tableContainer");
 const message = document.getElementById("message");
@@ -284,7 +286,47 @@ function renderModuleMedicineSuggestions(
         const option = document.createElement("button");
         option.type = "button";
         option.className =
-            "list-group-item list-group-item-action bg-white text-dark border-success-subtle";
+            "list-group-item list-group-item-action sale-stock-option";
+        if (medicine.stock_total <= 10) {
+            option.classList.add("sale-stock-danger");
+            option.style.setProperty(
+                "background-color",
+                "#f8d7da",
+                "important"
+            );
+            option.style.setProperty(
+                "border-left",
+                "6px solid #dc3545",
+                "important"
+            );
+            if (medicine.stock_total <= 0) {
+                option.classList.add("sale-medicine-agotado");
+            }
+        } else if (medicine.stock_total <= 30) {
+            option.classList.add("sale-stock-warning");
+            option.style.setProperty(
+                "background-color",
+                "#fff0dc",
+                "important"
+            );
+            option.style.setProperty(
+                "border-left",
+                "6px solid #fd7e14",
+                "important"
+            );
+        } else {
+            option.classList.add("sale-stock-normal");
+            option.style.setProperty(
+                "background-color",
+                "#ffffff",
+                "important"
+            );
+            option.style.setProperty(
+                "border-left",
+                "6px solid #ced8d5",
+                "important"
+            );
+        }
 
         const title = document.createElement("span");
         title.className = "d-block fw-semibold text-success";
@@ -357,9 +399,9 @@ if (!user || !permissions[user.rol]?.includes(moduleName)) {
             ? "Consulta del catálogo de medicamentos."
             : config.description;
     document.getElementById("sessionUser").textContent = `${user.nombre} ${user.apellido} - ${user.rol}`;
-    if (isReadOnlyMedicine) {
+    if (isReadOnlyMedicine && form) {
         form.closest("section").classList.add("d-none");
-    } else {
+    } else if (!isReadOnlyModule) {
         renderForm();
     }
     loadRows();
@@ -371,13 +413,37 @@ document.getElementById("logoutButton").addEventListener("click", () => {
     ipcRenderer.send("session:clear-user");
     window.location.href = "index.html";
 });
-document.getElementById("clearButton").addEventListener("click", clearForm);
-form.addEventListener("submit", saveRecord);
+document.getElementById("clearButton")?.addEventListener("click", clearForm);
+form?.addEventListener("submit", saveRecord);
 
 function showMessage(text, error = false) {
+    if (messageTimer) {
+        window.clearTimeout(messageTimer);
+    }
     message.textContent = text;
     message.className = error ? "alert alert-danger" : "alert alert-success";
-    setTimeout(() => { message.className = "alert d-none"; }, 3500);
+    messageTimer = window.setTimeout(() => {
+        message.className = "alert d-none";
+        messageTimer = null;
+    }, 3500);
+}
+
+function formatStructuredInput(value, format) {
+    const digits = String(value || "").replace(/\D/g, "");
+    if (format === "identity") {
+        return [
+            digits.slice(0, 4),
+            digits.slice(4, 8),
+            digits.slice(8, 13),
+        ].filter(Boolean).join("-");
+    }
+    if (format === "phone") {
+        return [
+            digits.slice(0, 4),
+            digits.slice(4, 8),
+        ].filter(Boolean).join("-");
+    }
+    return value;
 }
 
 function renderForm() {
@@ -387,6 +453,10 @@ function renderForm() {
             hiddenInput.type = "hidden";
             hiddenInput.id = field.name;
             hiddenInput.name = field.name;
+            hiddenInput.value = field.currentUser
+                ? user.id_usuario
+                : (field.defaultValue ?? "");
+            hiddenInput.defaultValue = hiddenInput.value;
             form.appendChild(hiddenInput);
             continue;
         }
@@ -413,7 +483,8 @@ function renderForm() {
             input = document.createElement("input");
             input.type = "text";
             input.className = "form-control";
-            input.placeholder = "Escriba el DNI del cliente";
+            input.placeholder =
+                field.placeholder || "Ej. 0706-2000-04500";
         } else if (field.type === "distributor-name") {
             input = document.createElement("input");
             input.type = "text";
@@ -432,12 +503,26 @@ function renderForm() {
             if (field.min !== undefined) input.min = field.min;
             if (field.minlength) input.minLength = field.minlength;
         }
+        if (field.exactLength) {
+            input.minLength = field.exactLength;
+            input.maxLength = field.exactLength;
+        }
+        if (field.placeholder) {
+            input.placeholder = field.placeholder;
+        }
         input.id = field.name;
         input.name = field.name;
         input.required = Boolean(field.required);
 
         if (field.currentUser) {
             input.value = user.id_usuario;
+        }
+        if (
+            !field.currentUser &&
+            field.defaultValue !== undefined
+        ) {
+            input.value = String(field.defaultValue);
+            input.defaultValue = String(field.defaultValue);
         }
 
         if (field.autoInvoice) {
@@ -483,7 +568,36 @@ function renderForm() {
         }
 
         group.append(label, input);
+        if (field.type === "password") {
+            const togglePassword = document.createElement("button");
+            togglePassword.type = "button";
+            togglePassword.className = "btn btn-outline-secondary btn-sm mt-2";
+            togglePassword.textContent = "Mostrar contraseña";
+            togglePassword.addEventListener("click", () => {
+                const willShow = input.type === "password";
+                input.type = willShow ? "text" : "password";
+                togglePassword.textContent = willShow
+                    ? "Ocultar contraseña"
+                    : "Mostrar contraseña";
+            });
+            group.appendChild(togglePassword);
+        }
+        if (field.type === "client-dni") {
+            const clientName = document.createElement("div");
+            clientName.id = "selectedClientName";
+            clientName.className = "form-text fw-semibold";
+            group.appendChild(clientName);
+        }
         form.appendChild(group);
+
+        if (field.format) {
+            input.addEventListener("input", () => {
+                input.value = formatStructuredInput(
+                    input.value,
+                    field.format
+                );
+            });
+        }
     }
 
     if (moduleName === "ventas") {
@@ -554,13 +668,13 @@ function configureAutomaticDiscount() {
     });
 
     dniInput.addEventListener("blur", () => {
-        updateSalesDiscount(true);
+        updateSalesDiscount(false);
     });
 
     dniInput.addEventListener("keydown", (event) => {
         if (event.key === "Enter") {
             event.preventDefault();
-            updateSalesDiscount(true);
+            updateSalesDiscount(false);
         }
     });
 
@@ -578,56 +692,102 @@ function createQuickClientRegistration() {
     container.id = "quickClientRegistration";
     container.className = "col-12 d-none";
     container.innerHTML = `
-        <div class="card border-warning-subtle bg-warning-subtle">
-            <div class="card-body">
-                <div class="d-flex flex-wrap justify-content-between align-items-center gap-2">
-                    <div>
-                        <h3 class="h6 mb-1">Cliente no registrado</h3>
-                        <p class="small text-secondary mb-0">
-                            Puede registrarlo sin salir de la venta.
-                        </p>
+        <div class="card quick-client-card overflow-hidden">
+            <div class="quick-client-accent" aria-hidden="true"></div>
+            <div class="card-body p-4">
+                <div class="d-flex flex-wrap justify-content-between align-items-center gap-3">
+                    <div class="d-flex align-items-center gap-3">
+                        <span class="quick-client-icon d-inline-flex align-items-center justify-content-center rounded-circle"
+                            aria-hidden="true">
+                            <svg viewBox="0 0 24 24">
+                                <circle cx="9" cy="8" r="3"></circle>
+                                <path d="M3.5 19a5.5 5.5 0 0 1 11 0"></path>
+                                <path d="M18 8v6M15 11h6"></path>
+                            </svg>
+                        </span>
+                        <div>
+                            <span class="badge quick-client-badge rounded-pill mb-2">
+                                Registro rápido
+                            </span>
+                            <h3 class="h5 fw-bold mb-1">Cliente no registrado</h3>
+                            <p class="small text-secondary mb-0">
+                                Puede registrarlo sin salir de la venta.
+                            </p>
+                        </div>
                     </div>
                     <button
                         id="showQuickClientForm"
-                        class="btn btn-warning btn-sm"
+                        class="btn btn-warning fw-semibold px-3"
                         type="button"
                     >
                         Registrar nuevo cliente
                     </button>
                 </div>
-                <div id="quickClientFields" class="row g-3 mt-1 d-none">
-                    <div class="col-12 col-md-6">
-                        <label class="form-label" for="quickClientIdentity">DNI</label>
-                        <input id="quickClientIdentity" class="form-control" type="text">
+                <div id="quickClientFields"
+                    class="row g-3 mt-4 pt-3 border-top d-none">
+                    <div class="col-12">
+                        <p class="small text-secondary mb-0">
+                            Los campos marcados con <span class="text-danger">*</span>
+                            son obligatorios.
+                        </p>
                     </div>
                     <div class="col-12 col-md-6">
-                        <label class="form-label" for="quickClientName">Nombre</label>
+                        <label class="form-label fw-semibold" for="quickClientIdentity">
+                            DNI <span class="text-danger">*</span>
+                        </label>
+                        <input id="quickClientIdentity" class="form-control"
+                            type="text" minlength="15" maxlength="15"
+                            placeholder="Ej. 0706-2000-04500">
+                    </div>
+                    <div class="col-12 col-md-6">
+                        <label class="form-label fw-semibold" for="quickClientName">
+                            Nombre <span class="text-danger">*</span>
+                        </label>
                         <input id="quickClientName" class="form-control" type="text">
                     </div>
                     <div class="col-12 col-md-6">
-                        <label class="form-label" for="quickClientLastName">Apellido</label>
+                        <label class="form-label fw-semibold" for="quickClientLastName">
+                            Apellido <span class="text-danger">*</span>
+                        </label>
                         <input id="quickClientLastName" class="form-control" type="text">
                     </div>
                     <div class="col-12 col-md-6">
-                        <label class="form-label" for="quickClientPhone">Teléfono</label>
-                        <input id="quickClientPhone" class="form-control" type="text">
+                        <label class="form-label fw-semibold" for="quickClientPhone">
+                            Teléfono <span class="text-danger">*</span>
+                        </label>
+                        <input id="quickClientPhone" class="form-control"
+                            type="text" minlength="9" maxlength="9"
+                            placeholder="Ej. 9999-9999">
                     </div>
                     <div class="col-12 col-md-6">
-                        <label class="form-label" for="quickClientBirthDate">Fecha de nacimiento</label>
+                        <label class="form-label fw-semibold" for="quickClientBirthDate">
+                            Fecha de nacimiento <span class="text-danger">*</span>
+                        </label>
                         <input id="quickClientBirthDate" class="form-control" type="date">
                     </div>
                     <div class="col-12 col-md-6">
-                        <label class="form-label" for="quickClientEmail">Correo</label>
+                        <label class="form-label fw-semibold" for="quickClientEmail">
+                            Correo
+                        </label>
                         <input id="quickClientEmail" class="form-control" type="email">
                     </div>
-                    <div class="col-12 col-md-6">
-                        <label class="form-label" for="quickClientAddress">Dirección</label>
+                    <div class="col-12">
+                        <label class="form-label fw-semibold" for="quickClientAddress">
+                            Dirección
+                        </label>
                         <input id="quickClientAddress" class="form-control" type="text">
                     </div>
-                    <div class="col-12">
+                    <div class="col-12 d-flex flex-wrap justify-content-end gap-2 pt-2">
+                        <button
+                            id="cancelQuickClient"
+                            class="btn btn-outline-secondary px-3"
+                            type="button"
+                        >
+                            Cancelar
+                        </button>
                         <button
                             id="saveQuickClient"
-                            class="btn btn-success"
+                            class="btn btn-success fw-semibold px-4"
                             type="button"
                         >
                             Guardar cliente y continuar venta
@@ -637,7 +797,12 @@ function createQuickClientRegistration() {
             </div>
         </div>
     `;
-    form.appendChild(container);
+    const dniGroup = document.getElementById("id_cliente")?.closest("div");
+    if (dniGroup) {
+        dniGroup.insertAdjacentElement("afterend", container);
+    } else {
+        form.appendChild(container);
+    }
 
     document
         .getElementById("showQuickClientForm")
@@ -647,10 +812,33 @@ function createQuickClientRegistration() {
             document
                 .getElementById("quickClientFields")
                 .classList.remove("d-none");
+            document
+                .getElementById("showQuickClientForm")
+                .classList.add("d-none");
         });
     document
         .getElementById("saveQuickClient")
         .addEventListener("click", saveQuickClient);
+    document
+        .getElementById("cancelQuickClient")
+        .addEventListener("click", () => {
+            document
+                .getElementById("quickClientFields")
+                .classList.add("d-none");
+            document
+                .getElementById("showQuickClientForm")
+                .classList.remove("d-none");
+        });
+    document.getElementById("quickClientIdentity")
+        .addEventListener("input", (event) => {
+            event.target.value =
+                formatStructuredInput(event.target.value, "identity");
+        });
+    document.getElementById("quickClientPhone")
+        .addEventListener("input", (event) => {
+            event.target.value =
+                formatStructuredInput(event.target.value, "phone");
+        });
 }
 
 function toggleQuickClientRegistration(show) {
@@ -663,6 +851,9 @@ function toggleQuickClientRegistration(show) {
         document
             .getElementById("quickClientFields")
             .classList.add("d-none");
+        document
+            .getElementById("showQuickClientForm")
+            .classList.remove("d-none");
     }
 }
 
@@ -761,17 +952,29 @@ function getDiscountRate(age) {
 
 async function updateSalesDiscount(showInvalidDni) {
     const dni = document.getElementById("id_cliente").value.trim();
+    const clientName = document.getElementById("selectedClientName");
 
     if (!dni) {
+        if (clientName) {
+            clientName.textContent = "";
+            clientName.className = "form-text fw-semibold";
+        }
         toggleQuickClientRegistration(false);
         form.dataset.discountRate = "0";
         document.getElementById("puntos_disponibles").value = "0";
         calculateSalesTotals();
         return;
     }
+    if (dni.length < 15) {
+        if (clientName) {
+            clientName.textContent = "";
+        }
+        toggleQuickClientRegistration(false);
+        return;
+    }
 
     const [clients] = await db.execute(
-        `SELECT fecha_nacimiento, puntos_acumulados
+        `SELECT nombre, apellido, fecha_nacimiento, puntos_acumulados
          FROM clientes
          WHERE identidad = ?
             AND estado = 'Activo'
@@ -780,6 +983,10 @@ async function updateSalesDiscount(showInvalidDni) {
     );
 
     if (!clients.length) {
+        if (clientName) {
+            clientName.textContent = "";
+            clientName.className = "form-text fw-semibold";
+        }
         toggleQuickClientRegistration(true);
         form.dataset.discountRate = "0";
         document.getElementById("puntos_disponibles").value = "0";
@@ -794,12 +1001,18 @@ async function updateSalesDiscount(showInvalidDni) {
         return;
     }
 
-    const age = calculateAge(clients[0].fecha_nacimiento);
+    const client = clients[0];
+    if (clientName) {
+        clientName.textContent =
+            `Cliente: ${client.nombre} ${client.apellido}`;
+        clientName.className = "form-text fw-semibold text-success";
+    }
+    const age = calculateAge(client.fecha_nacimiento);
     toggleQuickClientRegistration(false);
     const rate = getDiscountRate(age);
     form.dataset.discountRate = String(rate);
     document.getElementById("puntos_disponibles").value =
-        String(clients[0].puntos_acumulados || 0);
+        String(client.puntos_acumulados || 0);
 
     calculateSalesTotals();
 }
@@ -974,6 +1187,7 @@ async function loadSaleMedicineCatalog() {
         const [catalogRows] = await db.query(
             `SELECT m.id_medicamento, m.codigo, m.nombre,
                     m.precio_venta, m.stock_total, m.restriccion,
+                    m.estado,
                     mp.id_presentacion,
                     mp.nombre_presentacion,
                     mp.precio_venta AS precio_presentacion
@@ -981,8 +1195,7 @@ async function loadSaleMedicineCatalog() {
              LEFT JOIN medicamento_presentaciones mp
                 ON mp.id_medicamento = m.id_medicamento
                AND mp.estado = 'Activa'
-             WHERE m.estado = 'Disponible'
-                AND m.stock_total > 0
+             WHERE m.estado <> 'Inactivo'
              ORDER BY m.nombre, mp.nombre_presentacion`
         );
         const medicines = new Map();
@@ -995,6 +1208,7 @@ async function loadSaleMedicineCatalog() {
                     precio_venta: Number(row.precio_venta),
                     stock_total: Number(row.stock_total),
                     restriccion: row.restriccion,
+                    estado: row.estado,
                     presentations: [],
                 });
             }
@@ -1051,20 +1265,34 @@ function renderMedicineSuggestions(searchValue) {
 
         const name = document.createElement("span");
         name.className = "d-block fw-semibold text-success";
+        if (medicine.stock_total <= 10) {
+            name.style.setProperty("color", "#842029", "important");
+        } else if (medicine.stock_total <= 30) {
+            name.style.setProperty("color", "#9a4b00", "important");
+        }
         name.textContent =
             `${medicine.codigo} - ${medicine.nombre}`;
 
         const detail = document.createElement("small");
         detail.className = "text-secondary";
+        if (medicine.stock_total <= 10) {
+            detail.style.setProperty("color", "#842029", "important");
+        } else if (medicine.stock_total <= 30) {
+            detail.style.setProperty("color", "#8a5a25", "important");
+        }
         const prices = medicine.presentations.map(
             (presentation) => presentation.precio
         );
         const startingPrice = prices.length
             ? Math.min(...prices)
             : medicine.precio_venta;
-        detail.textContent =
-            `Stock: ${medicine.stock_total} | Desde: L ${startingPrice.toFixed(2)}`;
-        if (medicine.restriccion === "Con Receta Medica") {
+        detail.textContent = medicine.stock_total <= 0
+            ? "Agotado"
+            : `Stock: ${medicine.stock_total} | Desde: L ${startingPrice.toFixed(2)}`;
+        if (
+            medicine.stock_total > 0 &&
+            medicine.restriccion === "Con Receta Medica"
+        ) {
             detail.textContent += " | Venta controlada";
         }
 
@@ -1139,7 +1367,7 @@ function hideMedicineSuggestions() {
         ?.classList.add("d-none");
 }
 
-function addMedicineToSale() {
+async function addMedicineToSale() {
     const medicineText =
         document.getElementById("saleMedicine")
             .value
@@ -1162,6 +1390,13 @@ function addMedicineToSale() {
 
     if (!medicine) {
         showMessage("Seleccione un medicamento.", true);
+        return;
+    }
+    if (medicine.stock_total <= 0) {
+        showMessage(
+            `${medicine.nombre}: Agotado.`,
+            true
+        );
         return;
     }
     const presentation = medicine.presentations.find(
@@ -1204,9 +1439,7 @@ function addMedicineToSale() {
 
     if (
         medicine.restriccion === "Con Receta Medica" &&
-        !window.confirm(
-            "Este medicamento es de venta controlada. ¿Verificó la receta médica?"
-        )
+        !await confirmControlledMedicine(medicine.nombre)
     ) {
         return;
     }
@@ -1237,6 +1470,75 @@ function addMedicineToSale() {
     renderSaleItems();
 }
 
+function confirmControlledMedicine(medicineName) {
+    return new Promise((resolve) => {
+        const dialog = document.createElement("dialog");
+        dialog.className = "controlled-medicine-dialog";
+        dialog.innerHTML = `
+            <section class="controlled-medicine-card">
+                <header class="controlled-medicine-header">
+                    <span class="controlled-medicine-icon" aria-hidden="true">
+                        <svg viewBox="0 0 24 24">
+                            <path d="M12 3 2.8 19h18.4L12 3Z"></path>
+                            <path d="M12 9v4M12 16.5h.01"></path>
+                        </svg>
+                    </span>
+                    <span>
+                        <span class="controlled-medicine-eyebrow">
+                            Venta controlada
+                        </span>
+                        <strong>Verificación de receta médica</strong>
+                    </span>
+                </header>
+                <div class="controlled-medicine-body">
+                    <p>
+                        El medicamento <strong data-value="medicine"></strong>
+                        requiere receta médica.
+                    </p>
+                    <div class="controlled-medicine-notice">
+                        Confirme únicamente si revisó la receta presentada
+                        por el cliente.
+                    </div>
+                </div>
+                <footer class="controlled-medicine-actions">
+                    <button data-action="cancel" type="button"
+                        class="btn btn-outline-secondary">
+                        Volver y corregir
+                    </button>
+                    <button data-action="confirm" type="button"
+                        class="btn btn-warning fw-semibold">
+                        Receta verificada
+                    </button>
+                </footer>
+            </section>`;
+        dialog.querySelector('[data-value="medicine"]').textContent =
+            medicineName;
+
+        let completed = false;
+        const finish = (result) => {
+            if (completed) return;
+            completed = true;
+            dialog.close();
+            dialog.remove();
+            resolve(result);
+        };
+        dialog.querySelector('[data-action="confirm"]')
+            .addEventListener("click", () => finish(true));
+        dialog.querySelector('[data-action="cancel"]')
+            .addEventListener("click", () => finish(false));
+        dialog.addEventListener("cancel", (event) => {
+            event.preventDefault();
+            finish(false);
+        });
+        dialog.addEventListener("click", (event) => {
+            if (event.target === dialog) finish(false);
+        });
+
+        document.body.appendChild(dialog);
+        dialog.showModal();
+    });
+}
+
 function getMedicineDisplay(medicine) {
     const prices = medicine.presentations.map(
         (presentation) => presentation.precio
@@ -1246,7 +1548,11 @@ function getMedicineDisplay(medicine) {
         : medicine.precio_venta;
     return (
         `${medicine.codigo} - ${medicine.nombre}` +
-        ` | Stock: ${medicine.stock_total}` +
+        (
+            medicine.stock_total <= 0
+                ? " | Agotado"
+                : ` | Stock: ${medicine.stock_total}`
+        ) +
         ` | Desde L ${startingPrice.toFixed(2)}`
     );
 }
@@ -1314,6 +1620,39 @@ function renderSaleItems() {
 
 async function loadRows() {
     try {
+        if (moduleName === "facturas") {
+            [rows] = await db.query(
+                `SELECT
+                    CONCAT('V-', v.id_venta) AS referencia,
+                    v.numero_factura,
+                    v.fecha_venta AS fecha,
+                    CONCAT(u.nombre, ' ', u.apellido) AS responsable,
+                    COALESCE(
+                        CONCAT(c.nombre, ' ', c.apellido),
+                        'Consumidor final'
+                    ) AS tercero,
+                    v.subtotal,
+                    v.descuento,
+                    v.impuesto,
+                    v.total,
+                    v.metodo_pago,
+                    v.monto_recibido,
+                    v.cambio,
+                    v.puntos_generados,
+                    v.puntos_utilizados,
+                    v.estado
+                 FROM ventas v
+                 INNER JOIN usuarios u
+                    ON v.id_usuario = u.id_usuario
+                 LEFT JOIN clientes c
+                    ON v.id_cliente = c.id_cliente
+                 ORDER BY fecha DESC, numero_factura DESC`
+            );
+            renderTable();
+            showRecordsTable();
+            return;
+        }
+
         const fields = config.fields.filter((field) => {
             return field.type !== "password" && !field.virtual;
         });
@@ -1339,7 +1678,11 @@ async function loadRows() {
                          medicamentos.id_medicamento`;
         }
         const clientIdentity = usesClientDni
-            ? ", clientes.identidad AS identidad_cliente"
+            ? `, clientes.identidad AS identidad_cliente,
+                 COALESCE(
+                    CONCAT(clientes.nombre, ' ', clientes.apellido),
+                    'Consumidor final'
+                 ) AS nombre_cliente`
             : "";
         const distributorName = usesDistributor
             ? ", distribuidores.nombre AS nombre_distribuidor"
@@ -1374,6 +1717,7 @@ function renderTable(records = rows) {
         return (
             field.type !== "password" &&
             !field.virtual &&
+            !field.hideInTable &&
             (!field.name.startsWith("id_") || field.showInTable)
         );
     });
@@ -1382,6 +1726,15 @@ function renderTable(records = rows) {
         fields.unshift({
             name: config.id,
             label: "ID Cliente",
+        });
+    }
+    if (moduleName === "ventas") {
+        const dniIndex = fields.findIndex(
+            (field) => field.name === "id_cliente"
+        );
+        fields.splice(dniIndex + 1, 0, {
+            name: "nombre_cliente",
+            label: "Nombre del cliente",
         });
     }
 
@@ -1394,8 +1747,18 @@ function renderTable(records = rows) {
         th.textContent = field.label; 
         header.appendChild(th); 
     });
+    if (moduleName === "facturas") {
+        const invoiceHeader = document.createElement("th");
+        invoiceHeader.textContent = "Factura";
+        header.appendChild(invoiceHeader);
+    }
     
-    if (!isReadOnlyMedicine && !isImmutablePurchase && !isImmutableLot) {
+    if (
+        !isReadOnlyMedicine &&
+        !isImmutablePurchase &&
+        !isImmutableLot &&
+        !isReadOnlyModule
+    ) {
         const actionsHeader = document.createElement("th");
         actionsHeader.textContent = "Acciones";
         header.appendChild(actionsHeader);
@@ -1414,9 +1777,43 @@ function renderTable(records = rows) {
         }
         fields.forEach((field) => {
             const column = field.displayName || field.name;
-            tr.insertCell().textContent = formatValue(row[column]);
+            const invoiceMoneyFields = [
+                "subtotal",
+                "descuento",
+                "impuesto",
+                "total",
+                "monto_recibido",
+                "cambio",
+            ];
+            const value =
+                moduleName === "facturas" &&
+                invoiceMoneyFields.includes(field.name)
+                ? `L ${Number(row[column] || 0).toFixed(2)}`
+                : formatValue(row[column]);
+            tr.insertCell().textContent = value;
         });
-        if (!isReadOnlyMedicine && !isImmutablePurchase && !isImmutableLot) {
+        if (moduleName === "facturas") {
+            const invoiceCell = tr.insertCell();
+            const invoiceButton = document.createElement("button");
+            invoiceButton.type = "button";
+            invoiceButton.className = "btn btn-outline-success btn-sm";
+            invoiceButton.textContent = "Generar factura";
+            invoiceButton.addEventListener("click", () => {
+                const id = moduleName === "ventas"
+                    ? row[config.id]
+                    : Number(
+                        String(row.referencia || "").replace("V-", "")
+                    );
+                openInvoiceDocument(id);
+            });
+            invoiceCell.appendChild(invoiceButton);
+        }
+        if (
+            !isReadOnlyMedicine &&
+            !isImmutablePurchase &&
+            !isImmutableLot &&
+            !isReadOnlyModule
+        ) {
             const actions = tr.insertCell();
             const edit = document.createElement("button");
             edit.className = "btn btn-outline-success btn-sm me-2";
@@ -1435,10 +1832,173 @@ function renderTable(records = rows) {
     tableContainer.appendChild(table);
 }
 
+function openInvoiceDocument(saleId) {
+    if (!Number.isInteger(Number(saleId)) || Number(saleId) <= 0) {
+        showMessage("No se pudo identificar la factura.", true);
+        return;
+    }
+    window.open(
+        `factura_documento.html?id=${encodeURIComponent(saleId)}`,
+        "_blank",
+        "width=520,height=860"
+    );
+}
+
+function showInvoiceReadyMessage(saleId) {
+    if (messageTimer) {
+        window.clearTimeout(messageTimer);
+        messageTimer = null;
+    }
+    message.className = "alert d-none";
+
+    const dialog = document.createElement("dialog");
+    dialog.className = "invoice-ready-dialog";
+    dialog.innerHTML = `
+        <section class="invoice-ready-card">
+            <div class="invoice-ready-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24">
+                    <path d="m7 12 3 3 7-7"></path>
+                </svg>
+            </div>
+            <span class="invoice-ready-eyebrow">Venta completada</span>
+            <h2>Venta guardada correctamente</h2>
+            <p>
+                La venta fue registrada y el inventario fue actualizado.
+                Puede generar la factura ahora.
+            </p>
+            <div class="invoice-ready-actions">
+                <button data-action="close" type="button"
+                    class="btn btn-outline-secondary">
+                    Continuar sin factura
+                </button>
+                <button data-action="invoice" type="button"
+                    class="btn btn-success fw-semibold">
+                    Generar factura
+                </button>
+            </div>
+        </section>`;
+
+    const closeDialog = () => {
+        dialog.close();
+        dialog.remove();
+    };
+    dialog.querySelector('[data-action="close"]')
+        .addEventListener("click", closeDialog);
+    dialog.querySelector('[data-action="invoice"]')
+        .addEventListener("click", () => {
+            closeDialog();
+            openInvoiceDocument(saleId);
+        });
+    dialog.addEventListener("cancel", (event) => {
+        event.preventDefault();
+        closeDialog();
+    });
+
+    document.body.appendChild(dialog);
+    dialog.showModal();
+}
+
+function confirmSaleData(details) {
+    return new Promise((resolve) => {
+        const dialog = document.createElement("dialog");
+        dialog.className = "sale-confirm-dialog";
+        dialog.innerHTML = `
+            <form method="dialog" class="sale-confirm-card">
+                <header class="sale-confirm-header">
+                    <span class="sale-confirm-icon" aria-hidden="true">
+                        <svg viewBox="0 0 24 24">
+                            <path d="M5 3h14v18l-3-2-4 2-4-2-3 2V3Z"></path>
+                            <path d="M8 8h8M8 12h5"></path>
+                        </svg>
+                    </span>
+                    <span>
+                        <span class="sale-confirm-eyebrow">Confirmar venta</span>
+                        <strong>Verifique los datos</strong>
+                    </span>
+                </header>
+                <div class="sale-confirm-body">
+                    <p class="text-secondary mb-3">
+                        Revise la información antes de registrar la venta.
+                    </p>
+                    <div class="sale-confirm-client">
+                        <span>Cliente</span>
+                        <span class="sale-confirm-client-data">
+                            <strong data-value="client"></strong>
+                            <small data-value="dni"></small>
+                        </span>
+                    </div>
+                    <dl class="sale-confirm-summary">
+                        <div><dt>Método de pago</dt>
+                            <dd data-value="paymentMethod"></dd></div>
+                        <div><dt>Monto recibido</dt>
+                            <dd data-value="received"></dd></div>
+                        <div><dt>Cambio</dt>
+                            <dd data-value="change"></dd></div>
+                        <div><dt>Puntos utilizados</dt>
+                            <dd data-value="usedPoints"></dd></div>
+                    </dl>
+                    <div class="sale-confirm-total">
+                        <span>Total a pagar</span>
+                        <strong data-value="total"></strong>
+                    </div>
+                </div>
+                <footer class="sale-confirm-actions">
+                    <button data-action="cancel" type="button"
+                        class="btn btn-outline-secondary">
+                        Volver y corregir
+                    </button>
+                    <button data-action="confirm" type="button"
+                        class="btn btn-success fw-semibold">
+                        Confirmar y registrar
+                    </button>
+                </footer>
+            </form>`;
+
+        const money = (value) => `L ${Number(value || 0).toFixed(2)}`;
+        const setValue = (name, value) => {
+            dialog.querySelector(`[data-value="${name}"]`).textContent =
+                value;
+        };
+        setValue("client", details.client);
+        setValue("dni", `DNI: ${details.dni}`);
+        setValue("paymentMethod", details.paymentMethod);
+        setValue("received", money(details.received));
+        setValue("change", money(details.change));
+        setValue("usedPoints", String(details.usedPoints));
+        setValue("total", money(details.total));
+
+        let completed = false;
+        const finish = (result) => {
+            if (completed) return;
+            completed = true;
+            dialog.close();
+            dialog.remove();
+            resolve(result);
+        };
+        dialog.querySelector('[data-action="confirm"]')
+            .addEventListener("click", () => finish(true));
+        dialog.querySelector('[data-action="cancel"]')
+            .addEventListener("click", () => finish(false));
+        dialog.addEventListener("cancel", (event) => {
+            event.preventDefault();
+            finish(false);
+        });
+        dialog.addEventListener("click", (event) => {
+            if (event.target === dialog) finish(false);
+        });
+
+        document.body.appendChild(dialog);
+        dialog.showModal();
+    });
+}
+
 function formatValue(value) {
     if (value == null) return "";
     if (value instanceof Date) return value.toISOString().slice(0, 10);
-    return String(value).replace(/T.*$/, "");
+    const text = String(value);
+    return /^\d{4}-\d{2}-\d{2}T/.test(text)
+        ? text.slice(0, 10)
+        : text;
 }
 
 function formatDate(value) {
@@ -1450,7 +2010,10 @@ function formatDate(value) {
         return value.toISOString().slice(0, 10);
     }
 
-    return String(value).replace(/T.*$/, "");
+    const text = String(value);
+    return /^\d{4}-\d{2}-\d{2}T/.test(text)
+        ? text.slice(0, 10)
+        : text;
 }
 
 function getData() {
@@ -1490,6 +2053,16 @@ function getData() {
 
         const value = element.value.trim();
         if (field.required && !value && !(editingId !== null && field.type === "password")) throw new Error(`Complete el campo: ${field.label}`);
+        if (
+            value &&
+            field.exactLength &&
+            value.length !== field.exactLength
+        ) {
+            throw new Error(
+                `${field.label} debe tener exactamente ` +
+                `${field.exactLength} caracteres.`
+            );
+        }
 
         if (field.passwordRule && value) {
             const validPassword =
@@ -1572,8 +2145,8 @@ async function saveRecord(event) {
 
         if (clientDniField && data.id_cliente) {
             const [clients] = await db.execute(
-                `SELECT id_cliente, fecha_nacimiento,
-                        puntos_acumulados
+                `SELECT id_cliente, nombre, apellido, identidad,
+                        fecha_nacimiento, puntos_acumulados
                  FROM clientes
                  WHERE identidad = ?
                     AND estado = 'Activo'
@@ -1647,14 +2220,42 @@ async function saveRecord(event) {
                     ).toFixed(2)
                 );
 
-            await saveSaleTransaction(data);
-            showMessage(
-                editingId === null
-                    ? "Venta guardada correctamente."
-                    : "Venta actualizada correctamente."
-            );
+            const receivedAmount = Number(data.monto_recibido || 0);
+            if (
+                !Number.isFinite(receivedAmount) ||
+                receivedAmount < data.total
+            ) {
+                throw new Error(
+                    "El monto recibido no puede ser menor " +
+                    "que el total a pagar."
+                );
+            }
+
+            const clientLabel = selectedClient
+                ? `${selectedClient.nombre} ${selectedClient.apellido}`
+                : "Consumidor final";
+            const confirmed = await confirmSaleData({
+                client: clientLabel,
+                dni: selectedClient?.identidad || "No registrado",
+                total: data.total,
+                paymentMethod: data.metodo_pago,
+                received: receivedAmount,
+                change: Number(data.cambio || 0),
+                usedPoints,
+            });
+            if (!confirmed) {
+                return;
+            }
+
+            const isNewSale = editingId === null;
+            const savedSaleId = await saveSaleTransaction(data);
             clearForm();
             await loadRows();
+            if (isNewSale) {
+                showInvoiceReadyMessage(savedSaleId);
+            } else {
+                showMessage("Venta actualizada correctamente.");
+            }
             return;
         }
 
@@ -2035,6 +2636,7 @@ async function saveSaleTransaction(data) {
         }
 
         await connection.commit();
+        return saleId;
     } catch (error) {
         await connection.rollback();
         throw error;
@@ -2533,6 +3135,13 @@ async function saveQuickMedicine() {
         );
         return;
     }
+    if (identity.length !== 15 || phone.length !== 9) {
+        showMessage(
+            "El DNI debe tener 15 caracteres y el teléfono 9.",
+            true
+        );
+        return;
+    }
     if (!allowed.includes(saleForm) || !(salePrice > 0) ||
         !Number.isFinite(purchasePrice) || purchasePrice < 0) {
         showMessage("Revise la forma de venta y los precios.", true);
@@ -2701,12 +3310,6 @@ function configureDistributorAutocomplete() {
             );
 
             renderDistributorSuggestions(results, suggestionsDiv, distributorInput);
-            const exactMatch = results.some(
-                (item) =>
-                    item.nombre.trim().toLocaleLowerCase("es") ===
-                    query.toLocaleLowerCase("es")
-            );
-            toggleQuickDistributorRegistration(!exactMatch);
         } catch (error) {
             console.error("Error buscando distribuidores:", error);
         }
@@ -2720,6 +3323,31 @@ function configureDistributorAutocomplete() {
             );
             renderDistributorSuggestions(results, suggestionsDiv, distributorInput);
         }
+    });
+
+    distributorInput.addEventListener("blur", () => {
+        window.setTimeout(async () => {
+            const query = distributorInput.value.trim();
+            if (!query) {
+                toggleQuickDistributorRegistration(false);
+                return;
+            }
+            try {
+                const [results] = await db.execute(
+                    `SELECT id_distribuidor
+                     FROM distribuidores
+                     WHERE LOWER(TRIM(nombre)) = LOWER(TRIM(?))
+                     LIMIT 1`,
+                    [query]
+                );
+                toggleQuickDistributorRegistration(results.length === 0);
+            } catch (error) {
+                console.error(
+                    "Error verificando el distribuidor:",
+                    error
+                );
+            }
+        }, 220);
     });
 
     document.addEventListener("click", (event) => {
@@ -2768,47 +3396,91 @@ function createQuickDistributorRegistration() {
     container.id = "quickDistributorRegistration";
     container.className = "col-12 d-none";
     container.innerHTML = `
-        <div class="card border-warning-subtle bg-warning-subtle">
-            <div class="card-body">
-                <div class="d-flex flex-wrap justify-content-between align-items-center gap-2">
-                    <div>
-                        <h3 class="h6 mb-1">Laboratorio o proveedor no registrado</h3>
-                        <p class="small text-secondary mb-0">
-                            Puede registrarlo sin salir de la compra.
-                        </p>
+        <div class="card quick-client-card quick-provider-card overflow-hidden">
+            <div class="quick-client-accent" aria-hidden="true"></div>
+            <div class="card-body p-4">
+                <div class="d-flex flex-wrap justify-content-between align-items-center gap-3">
+                    <div class="d-flex align-items-center gap-3">
+                        <span class="quick-client-icon d-inline-flex align-items-center justify-content-center rounded-circle"
+                            aria-hidden="true">
+                            <svg viewBox="0 0 24 24">
+                                <path d="M3 7h12v10H3z"></path>
+                                <path d="M15 10h3l3 3v4h-6z"></path>
+                                <circle cx="7" cy="18" r="2"></circle>
+                                <circle cx="18" cy="18" r="2"></circle>
+                            </svg>
+                        </span>
+                        <div>
+                            <span class="badge quick-client-badge rounded-pill mb-2">
+                                Registro rápido
+                            </span>
+                            <h3 class="h5 fw-bold mb-1">
+                                Laboratorio o proveedor no registrado
+                            </h3>
+                            <p class="small text-secondary mb-0">
+                                Puede registrarlo sin salir de la compra.
+                            </p>
+                        </div>
                     </div>
                     <button id="showQuickDistributorForm"
-                        class="btn btn-warning btn-sm" type="button">
-                        Registrar nuevo proveedor
+                        class="btn btn-warning fw-semibold px-3" type="button">
+                        Registrar laboratorio o proveedor
                     </button>
                 </div>
-                <div id="quickDistributorFields" class="row g-3 mt-1 d-none">
+                <div id="quickDistributorFields"
+                    class="row g-3 mt-4 pt-3 border-top d-none">
+                    <div class="col-12">
+                        <p class="small text-secondary mb-0">
+                            Los campos marcados con <span class="text-danger">*</span>
+                            son obligatorios.
+                        </p>
+                    </div>
                     <div class="col-12 col-md-6">
-                        <label class="form-label" for="quickDistributorName">Nombre</label>
+                        <label class="form-label fw-semibold" for="quickDistributorName">
+                            Nombre <span class="text-danger">*</span>
+                        </label>
                         <input id="quickDistributorName" class="form-control" type="text">
                     </div>
                     <div class="col-12 col-md-6">
-                        <label class="form-label" for="quickDistributorPhone">Teléfono</label>
-                        <input id="quickDistributorPhone" class="form-control" type="text">
+                        <label class="form-label fw-semibold" for="quickDistributorPhone">
+                            Teléfono <span class="text-danger">*</span>
+                        </label>
+                        <input id="quickDistributorPhone" class="form-control"
+                            type="text" minlength="9" maxlength="9"
+                            placeholder="Ej. 9999-9999">
                     </div>
                     <div class="col-12 col-md-6">
-                        <label class="form-label" for="quickDistributorEmail">Correo</label>
+                        <label class="form-label fw-semibold" for="quickDistributorEmail">
+                            Correo <span class="text-danger">*</span>
+                        </label>
                         <input id="quickDistributorEmail" class="form-control" type="email">
                     </div>
-                    <div class="col-12 col-md-6">
-                        <label class="form-label" for="quickDistributorAddress">Dirección</label>
+                    <div class="col-12">
+                        <label class="form-label fw-semibold" for="quickDistributorAddress">
+                            Dirección
+                        </label>
                         <input id="quickDistributorAddress" class="form-control" type="text">
                     </div>
-                    <div class="col-12">
+                    <div class="col-12 d-flex flex-wrap justify-content-end gap-2 pt-2">
+                        <button id="cancelQuickDistributor"
+                            class="btn btn-outline-secondary px-3" type="button">
+                            Cancelar
+                        </button>
                         <button id="saveQuickDistributor"
-                            class="btn btn-success" type="button">
+                            class="btn btn-success fw-semibold px-4" type="button">
                             Guardar proveedor y continuar compra
                         </button>
                     </div>
                 </div>
             </div>
         </div>`;
-    form.appendChild(container);
+    const distributorGroup =
+        document.getElementById("id_distribuidor")?.closest("div");
+    if (distributorGroup) {
+        distributorGroup.insertAdjacentElement("afterend", container);
+    } else {
+        form.appendChild(container);
+    }
 
     document.getElementById("showQuickDistributorForm")
         .addEventListener("click", () => {
@@ -2816,9 +3488,23 @@ function createQuickDistributorRegistration() {
                 document.getElementById("id_distribuidor").value.trim();
             document.getElementById("quickDistributorFields")
                 .classList.remove("d-none");
+            document.getElementById("showQuickDistributorForm")
+                .classList.add("d-none");
         });
     document.getElementById("saveQuickDistributor")
         .addEventListener("click", saveQuickDistributor);
+    document.getElementById("cancelQuickDistributor")
+        .addEventListener("click", () => {
+            document.getElementById("quickDistributorFields")
+                .classList.add("d-none");
+            document.getElementById("showQuickDistributorForm")
+                .classList.remove("d-none");
+        });
+    document.getElementById("quickDistributorPhone")
+        .addEventListener("input", (event) => {
+            event.target.value =
+                formatStructuredInput(event.target.value, "phone");
+        });
 }
 
 function toggleQuickDistributorRegistration(show) {
@@ -2828,6 +3514,8 @@ function toggleQuickDistributorRegistration(show) {
     if (!show) {
         document.getElementById("quickDistributorFields")
             ?.classList.add("d-none");
+        document.getElementById("showQuickDistributorForm")
+            ?.classList.remove("d-none");
     }
 }
 
@@ -2840,6 +3528,13 @@ async function saveQuickDistributor() {
     if (!name || !phone || !email) {
         showMessage(
             "Complete el nombre, teléfono y correo del proveedor.",
+            true
+        );
+        return;
+    }
+    if (phone.length !== 9) {
+        showMessage(
+            "El teléfono del proveedor debe tener exactamente 9 caracteres.",
             true
         );
         return;

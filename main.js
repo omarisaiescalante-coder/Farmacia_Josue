@@ -41,6 +41,29 @@ function createWindow() {
         win.show();
     });
 
+    win.webContents.setWindowOpenHandler(({ url }) => {
+        if (url.includes("factura_documento.html")) {
+            return {
+                action: "allow",
+                overrideBrowserWindowOptions: {
+                    width: 520,
+                    height: 860,
+                    minWidth: 420,
+                    minHeight: 640,
+                    autoHideMenuBar: true,
+                    backgroundColor: "#dceef5",
+                    title: "Factura",
+                    webPreferences: {
+                        nodeIntegration: true,
+                        contextIsolation: false,
+                    }
+                }
+            };
+        }
+
+        return { action: "deny" };
+    });
+
     win.loadFile('index.html');
 }
 
@@ -60,7 +83,12 @@ app.on('activate', () => {
 
 ipcMain.handle(
     'generate-report-pdf',
-    async (event, suggestedName) => {
+    async (event, request) => {
+        const options = typeof request === "string"
+            ? { suggestedName: request, landscape: true }
+            : request;
+        const suggestedName =
+            options?.suggestedName || "reporte.pdf";
         const window = BrowserWindow.fromWebContents(
             event.sender
         );
@@ -88,7 +116,7 @@ ipcMain.handle(
         const pdf = await event.sender.printToPDF({
             printBackground: true,
             pageSize: 'A4',
-            landscape: true
+            landscape: options?.landscape ?? true
         });
 
         await fs.promises.writeFile(

@@ -9,16 +9,20 @@ module.exports = {
             label: "Número Factura",
             autoInvoice: true,
             hidden: true,
+            hideInTable: true,
             required: true
         },
         {
             name: "id_cliente",
             label: "DNI Cliente",
             type: "client-dni",
+            exactLength: 15,
+            format: "identity",
+            placeholder: "Ej. 0706-2000-04500",
             displayName: "identidad_cliente",
             showInTable: true
         },
-        { name: "id_usuario", label: "ID Usuario", type: "number", min: 1, required: true, currentUser: true, readOnly: true },
+        { name: "id_usuario", label: "ID Usuario", type: "number", min: 1, required: true, currentUser: true, hidden: true },
         {
             name: "subtotal",
             label: "Subtotal",
@@ -26,6 +30,7 @@ module.exports = {
             min: 0,
             step: "0.01",
             automaticSubtotal: true,
+            hideInTable: true,
             required: true
         },
         {
@@ -35,7 +40,8 @@ module.exports = {
             min: 0,
             step: "0.01",
             automaticDiscount: true,
-            hidden: true
+            hidden: true,
+            hideInTable: true
         },
         {
             name: "impuesto",
@@ -44,7 +50,8 @@ module.exports = {
             min: 0,
             step: "0.01",
             automaticTax: true,
-            hidden: true
+            hidden: true,
+            hideInTable: true
         },
         {
             name: "total",
@@ -56,21 +63,23 @@ module.exports = {
             required: true
         },
         { name: "metodo_pago", label: "Método de Pago", type: "select", options: ["Efectivo", "Tarjeta", "Transferencia", "Mixto"], required: true },
-        { name: "monto_recibido", label: "Monto Recibido", type: "number", min: 0, step: "0.01" },
+        { name: "monto_recibido", label: "Monto Recibido", type: "number", min: 0, step: "0.01", hideInTable: true },
         {
             name: "cambio",
             label: "Cambio",
             type: "number",
             min: 0,
             step: "0.01",
-            automaticChange: true
+            automaticChange: true,
+            hideInTable: true
         },
         {
             name: "puntos_generados",
             label: "Puntos Generados",
             type: "number",
             min: 0,
-            automaticPoints: true
+            automaticPoints: true,
+            hideInTable: true
         },
         {
             name: "puntos_disponibles",
@@ -84,8 +93,10 @@ module.exports = {
             label: "Puntos Utilizados",
             type: "number",
             min: 0,
-            pointsDiscount: true
+            defaultValue: "0",
+            pointsDiscount: true,
+            hideInTable: true
         },
-        { name: "estado", label: "Estado", type: "select", options: ["Completada", "Anulada"] }
+        { name: "estado", label: "Estado", defaultValue: "Completada", hidden: true }
     ]
 };

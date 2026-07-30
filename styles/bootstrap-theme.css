@@ -557,6 +557,31 @@ body[data-report] main.container-fluid {
     padding: clamp(24px, 3.5vw, 44px) !important;
 }
 
+body[data-module="facturas"] main.container-fluid {
+    width: min(1840px, 100%);
+    padding-inline: clamp(16px, 1.8vw, 30px) !important;
+}
+
+body[data-module="facturas"] #tableContainer {
+    overflow-x: auto;
+}
+
+body[data-module="facturas"] .table {
+    min-width: 1580px;
+    table-layout: auto;
+}
+
+body[data-module="facturas"] .table th,
+body[data-module="facturas"] .table td {
+    padding-inline: 12px;
+    white-space: nowrap;
+}
+
+body[data-module="facturas"] .table .btn {
+    min-width: 118px;
+    white-space: nowrap;
+}
+
 body[data-module] #backButton,
 body[data-report] #backButton {
     border-color: var(--fj-line);
@@ -741,5 +766,480 @@ body[data-report] .table > tbody > tr > td {
         animation-duration: 0.01ms !important;
         animation-iteration-count: 1 !important;
         transition-duration: 0.01ms !important;
+    }
+}
+.form-control::placeholder {
+    color: #6c757d;
+    opacity: 0.55;
+}
+
+.quick-client-card {
+    max-width: 980px;
+    margin-inline: auto;
+    border: 1px solid rgba(217, 164, 6, 0.28);
+    border-radius: 1.15rem;
+    background:
+        linear-gradient(135deg, rgba(255, 249, 224, 0.98), #fff 72%);
+    box-shadow: 0 14px 34px rgba(82, 71, 31, 0.1);
+}
+
+.quick-client-accent {
+    height: 5px;
+    background: linear-gradient(90deg, #f5b700, #ffd866 55%, #0b876b);
+}
+
+.quick-client-icon {
+    width: 48px;
+    height: 48px;
+    flex: 0 0 48px;
+    color: #9a6700;
+    background: #fff2b8;
+    border: 1px solid rgba(217, 164, 6, 0.25);
+}
+
+.quick-client-icon svg {
+    width: 25px;
+    height: 25px;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 1.8;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+}
+
+.quick-client-badge {
+    color: #795500;
+    background: rgba(255, 208, 65, 0.24);
+    border: 1px solid rgba(217, 164, 6, 0.2);
+}
+
+.quick-client-card .form-control {
+    min-height: 44px;
+    background-color: rgba(255, 255, 255, 0.92);
+}
+
+.quick-client-card .form-control:focus {
+    background-color: #fff;
+    border-color: #d6a900;
+    box-shadow: 0 0 0 0.22rem rgba(245, 183, 0, 0.14);
+}
+
+@media (max-width: 575.98px) {
+    .quick-client-card .card-body {
+        padding: 1.25rem !important;
+    }
+
+    #showQuickClientForm {
+        width: 100%;
+    }
+
+    #showQuickDistributorForm {
+        width: 100%;
+    }
+}
+
+.invoice-ready-dialog {
+    width: min(92vw, 460px);
+    max-width: none;
+    padding: 0;
+    border: 0;
+    border-radius: 1.25rem;
+    background: transparent;
+    box-shadow: 0 26px 70px rgba(14, 50, 42, 0.28);
+}
+
+.controlled-medicine-dialog {
+    width: min(92vw, 500px);
+    max-width: none;
+    padding: 0;
+    border: 0;
+    border-radius: 1.2rem;
+    background: transparent;
+    box-shadow: 0 26px 70px rgba(58, 45, 8, 0.3);
+}
+
+.sale-stock-option {
+    border-left-width: 5px !important;
+}
+
+.sale-stock-danger {
+    border-left-color: #dc3545 !important;
+    background: #f8d7da !important;
+}
+
+.sale-stock-danger:hover,
+.sale-stock-danger:focus {
+    background: #f1bfc4 !important;
+}
+
+.sale-stock-danger .text-success,
+.sale-stock-danger .text-secondary {
+    color: #842029 !important;
+}
+
+.sale-stock-warning {
+    border-left-color: #fd7e14 !important;
+    background: #fff0dc !important;
+}
+
+.sale-stock-warning:hover,
+.sale-stock-warning:focus {
+    background: #ffe1bd !important;
+}
+
+.sale-stock-warning .text-success {
+    color: #9a4b00 !important;
+}
+
+.sale-stock-warning .text-secondary {
+    color: #8a5a25 !important;
+}
+
+.sale-stock-normal {
+    border-left-color: #ced8d5 !important;
+    background: #fff !important;
+}
+
+.sale-stock-normal:hover,
+.sale-stock-normal:focus {
+    background: #edf7f3 !important;
+}
+
+.controlled-medicine-dialog::backdrop {
+    background: rgba(33, 29, 13, 0.55);
+    backdrop-filter: blur(3px);
+}
+
+.controlled-medicine-card {
+    overflow: hidden;
+    border-radius: inherit;
+    background: #fff;
+}
+
+.controlled-medicine-header {
+    display: flex;
+    align-items: center;
+    gap: 0.9rem;
+    padding: 1.2rem 1.35rem;
+    color: #503a00;
+    background: linear-gradient(135deg, #ffe59a, #ffc83d);
+}
+
+.controlled-medicine-header strong,
+.controlled-medicine-eyebrow {
+    display: block;
+}
+
+.controlled-medicine-header strong {
+    font-size: 1.08rem;
+}
+
+.controlled-medicine-eyebrow {
+    margin-bottom: 0.12rem;
+    font-size: 0.7rem;
+    font-weight: 800;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+}
+
+.controlled-medicine-icon {
+    display: inline-flex;
+    width: 46px;
+    height: 46px;
+    align-items: center;
+    justify-content: center;
+    flex: 0 0 46px;
+    border-radius: 0.85rem;
+    background: rgba(255, 255, 255, 0.48);
+}
+
+.controlled-medicine-icon svg {
+    width: 25px;
+    height: 25px;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 1.9;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+}
+
+.controlled-medicine-body {
+    padding: 1.35rem;
+}
+
+.controlled-medicine-body p {
+    margin-bottom: 1rem;
+}
+
+.controlled-medicine-notice {
+    padding: 0.85rem 1rem;
+    border: 1px solid #f1d98b;
+    border-radius: 0.8rem;
+    color: #684d00;
+    background: #fff9e5;
+    font-size: 0.9rem;
+}
+
+.controlled-medicine-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 0.7rem;
+    padding: 1rem 1.35rem 1.2rem;
+    border-top: 1px solid #f0ede4;
+    background: #fffdf8;
+}
+
+@media (max-width: 575.98px) {
+    .controlled-medicine-actions {
+        flex-direction: column-reverse;
+    }
+}
+
+.invoice-ready-dialog::backdrop {
+    background: rgba(9, 36, 31, 0.58);
+    backdrop-filter: blur(3px);
+}
+
+.invoice-ready-card {
+    padding: 2rem;
+    border: 1px solid rgba(10, 126, 96, 0.15);
+    border-radius: inherit;
+    text-align: center;
+    background: #fff;
+}
+
+.invoice-ready-icon {
+    display: inline-flex;
+    width: 68px;
+    height: 68px;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 1rem;
+    border-radius: 50%;
+    color: #08745b;
+    background: #e5f7f0;
+    box-shadow: 0 0 0 8px rgba(11, 144, 112, 0.08);
+}
+
+.invoice-ready-icon svg {
+    width: 35px;
+    height: 35px;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 2.2;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+}
+
+.invoice-ready-eyebrow {
+    display: block;
+    margin-bottom: 0.35rem;
+    color: #08745b;
+    font-size: 0.75rem;
+    font-weight: 800;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+}
+
+.invoice-ready-card h2 {
+    margin-bottom: 0.65rem;
+    color: #18312b;
+    font-size: 1.35rem;
+    font-weight: 750;
+}
+
+.invoice-ready-card p {
+    margin: 0 auto 1.5rem;
+    color: #687b75;
+    line-height: 1.55;
+}
+
+.invoice-ready-actions {
+    display: flex;
+    justify-content: center;
+    gap: 0.7rem;
+}
+
+@media (max-width: 575.98px) {
+    .invoice-ready-card {
+        padding: 1.5rem;
+    }
+
+    .invoice-ready-actions {
+        flex-direction: column-reverse;
+    }
+}
+
+.sale-confirm-dialog {
+    width: min(92vw, 520px);
+    max-width: none;
+    padding: 0;
+    border: 0;
+    border-radius: 1.25rem;
+    color: #18312b;
+    background: transparent;
+    box-shadow: 0 26px 70px rgba(14, 50, 42, 0.28);
+}
+
+.sale-confirm-dialog::backdrop {
+    background: rgba(9, 36, 31, 0.58);
+    backdrop-filter: blur(3px);
+}
+
+.sale-confirm-card {
+    overflow: hidden;
+    border: 1px solid rgba(10, 126, 96, 0.14);
+    border-radius: inherit;
+    background: #fff;
+}
+
+.sale-confirm-header {
+    display: flex;
+    align-items: center;
+    gap: 0.9rem;
+    padding: 1.25rem 1.4rem;
+    color: #fff;
+    background: linear-gradient(135deg, #086f59, #0b9070);
+}
+
+.sale-confirm-header strong,
+.sale-confirm-eyebrow {
+    display: block;
+}
+
+.sale-confirm-header strong {
+    font-size: 1.15rem;
+}
+
+.sale-confirm-eyebrow {
+    margin-bottom: 0.1rem;
+    color: rgba(255, 255, 255, 0.72);
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.09em;
+    text-transform: uppercase;
+}
+
+.sale-confirm-icon {
+    display: inline-flex;
+    width: 46px;
+    height: 46px;
+    align-items: center;
+    justify-content: center;
+    flex: 0 0 46px;
+    border: 1px solid rgba(255, 255, 255, 0.18);
+    border-radius: 0.9rem;
+    background: rgba(255, 255, 255, 0.12);
+}
+
+.sale-confirm-icon svg {
+    width: 25px;
+    height: 25px;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 1.8;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+}
+
+.sale-confirm-body {
+    padding: 1.4rem;
+}
+
+.sale-confirm-client {
+    display: flex;
+    justify-content: space-between;
+    gap: 1rem;
+    margin-bottom: 1rem;
+    padding: 0.9rem 1rem;
+    border: 1px solid #dce8e4;
+    border-radius: 0.85rem;
+    background: #f7faf9;
+}
+
+.sale-confirm-client span,
+.sale-confirm-summary dt {
+    color: #687b75;
+    font-size: 0.82rem;
+    font-weight: 600;
+}
+
+.sale-confirm-client strong {
+    text-align: right;
+}
+
+.sale-confirm-client-data {
+    display: flex;
+    align-items: flex-end;
+    flex-direction: column;
+    gap: 0.2rem;
+}
+
+.sale-confirm-client-data small {
+    color: #687b75;
+    font-weight: 600;
+}
+
+.sale-confirm-summary {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.7rem;
+    margin: 0;
+}
+
+.sale-confirm-summary > div {
+    padding: 0.75rem 0.85rem;
+    border-radius: 0.75rem;
+    background: #f7faf9;
+}
+
+.sale-confirm-summary dd {
+    margin: 0.25rem 0 0;
+    font-weight: 700;
+}
+
+.sale-confirm-total {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    margin-top: 1rem;
+    padding: 1rem;
+    border-radius: 0.9rem;
+    color: #075f4c;
+    background: #e8f7f1;
+}
+
+.sale-confirm-total strong {
+    font-size: 1.45rem;
+}
+
+.sale-confirm-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 0.7rem;
+    padding: 1rem 1.4rem 1.25rem;
+    border-top: 1px solid #edf2f0;
+    background: #fbfcfc;
+}
+
+@media (max-width: 575.98px) {
+    .sale-confirm-summary {
+        grid-template-columns: 1fr;
+    }
+
+    .sale-confirm-client,
+    .sale-confirm-total,
+    .sale-confirm-actions {
+        align-items: stretch;
+        flex-direction: column;
+    }
+
+    .sale-confirm-client strong {
+        text-align: left;
+    }
+
+    .sale-confirm-client-data {
+        align-items: flex-start;
     }
 }
