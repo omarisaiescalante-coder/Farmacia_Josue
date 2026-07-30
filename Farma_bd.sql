@@ -73,7 +73,7 @@ stock_minimo INT DEFAULT 5,
 restriccion ENUM('Sin Receta Medica','Con Receta Medica') NOT NULL,
 laboratorio VARCHAR(150),
 forma_venta ENUM('Caja','Unidad','Frasco','Blister','Sobre','Ampolla') NOT NULL,
-estado ENUM('Disponible','Agotado','Inactivo') DEFAULT 'Disponible',
+estado ENUM('Disponible','Inactivo') DEFAULT 'Disponible',
 fecha_registro DATETIME DEFAULT CURRENT_TIMESTAMP
         
 );

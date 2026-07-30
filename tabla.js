@@ -1705,6 +1705,12 @@ async function loadRows() {
 }
 
 function renderTable(records = rows) {
+
+    if (moduleName === "medicamentos") {
+        renderCardGrid(records);
+        return;
+    }
+
     tableContainer.replaceChildren();
     if (!records.length) {
         const empty = document.createElement("p");
@@ -1832,6 +1838,263 @@ function renderTable(records = rows) {
     tableContainer.appendChild(table);
 }
 
+/*=============================================
+FUNCION PARA EL MODO TRAJETA EN MEDICAMENTOS
+===============================================*/
+// ====== GRID MODERNO DE MEDICAMENTOS (SIN TOOLTIP FLOTANTE) ======
+function renderCardGrid(records = rows) {
+    tableContainer.replaceChildren();
+
+    if (!records.length) {
+        tableContainer.innerHTML = `
+            <div class="text-center text-secondary py-5">
+                No hay medicamentos registrados.
+            </div>
+        `;
+        return;
+    }
+
+    // CSS una sola vez
+    if (!document.getElementById("medicine-card-styles")) {
+        const style = document.createElement("style");
+        style.id = "medicine-card-styles";
+        style.textContent = `
+            .medicine-grid{
+                display:grid;
+                grid-template-columns:repeat(auto-fill,minmax(220px,1fr));
+                gap:18px;
+                padding:16px;
+            }
+
+            .medicine-card{
+                position:relative;
+                background:#fff;
+                border:none;
+                border-radius:24px;
+                padding:18px;
+                min-height:150px;
+                cursor:pointer;
+                transition:all .28s ease;
+                box-shadow:0 6px 18px rgba(13,110,253,.08);
+                overflow:hidden;
+            }
+
+            .medicine-card:hover{
+                transform:translateY(-4px);
+                box-shadow:0 16px 34px rgba(13,110,253,.18);
+                min-height:270px;
+            }
+
+            .medicine-code{
+                font-size:.75rem;
+                font-weight:700;
+                color:#64748b;
+                margin-bottom:10px;
+            }
+
+            .medicine-name{
+                font-size:1.05rem;
+                font-weight:800;
+                color:#111827;
+                line-height:1.2;
+                margin-bottom:6px;
+                display:-webkit-box;
+                -webkit-line-clamp:2;
+                -webkit-box-orient:vertical;
+                overflow:hidden;
+            }
+
+            .medicine-category{
+                font-size:.78rem;
+                color:#94a3b8;
+                margin-bottom:16px;
+            }
+
+            .stock-bar{
+                position:absolute;
+                left:18px;
+                right:18px;
+                bottom:14px;
+                height:8px;
+                border-radius:999px;
+                background:#e5e7eb;
+                overflow:hidden;
+            }
+
+            .stock-fill{
+                height:100%;
+                border-radius:999px;
+                transition:width .3s ease;
+            }
+
+            .stock-red{ background:#ef4444; }
+            .stock-yellow{ background:#f59e0b; }
+            .stock-green{ background:#22c55e; }
+
+            /* INFO QUE APARECE AL PASAR EL MOUSE */
+            .medicine-details{
+                margin-top:18px;
+                padding-top:14px;
+                border-top:1px solid #eef2f7;
+                opacity:0;
+                max-height:0;
+                overflow:hidden;
+                transform:translateY(8px);
+                transition:all .25s ease;
+            }
+
+            .medicine-card:hover .medicine-details{
+                opacity:1;
+                max-height:200px;
+                transform:translateY(0);
+            }
+
+            .tooltip-row{
+                display:flex;
+                justify-content:space-between;
+                gap:10px;
+                font-size:.82rem;
+                margin-bottom:8px;
+            }
+
+            .tooltip-label{
+                color:#64748b;
+            }
+
+            .tooltip-value{
+                color:#0f172a;
+                font-weight:700;
+                text-align:right;
+            }
+
+            .tooltip-actions{
+                display:flex;
+                gap:8px;
+                margin-top:14px;
+            }
+
+            .tooltip-btn{
+                flex:1;
+                border:none;
+                border-radius:10px;
+                padding:8px 10px;
+                font-size:.8rem;
+                font-weight:700;
+                cursor:pointer;
+                transition:all .2s ease;
+            }
+
+            .tooltip-btn.edit{
+                background:#ecfdf5;
+                color:#047857;
+            }
+
+            .tooltip-btn.edit:hover{
+                background:#d1fae5;
+            }
+
+            .tooltip-btn.delete{
+                background:#fef2f2;
+                color:#b91c1c;
+            }
+
+            .tooltip-btn.delete:hover{
+                background:#fee2e2;
+            }
+
+            @media (max-width:768px){
+                .medicine-grid{
+                    grid-template-columns:repeat(auto-fill,minmax(170px,1fr));
+                }
+            }
+        `;
+        document.head.appendChild(style);
+    }
+
+    const grid = document.createElement("div");
+    grid.className = "medicine-grid";
+
+    records.forEach((row) => {
+
+        // STOCK
+        const stock = Number(row.stock_total || row.stock || 0);
+
+        let colorClass = "stock-green";
+        if (stock <= 10) colorClass = "stock-red";
+        else if (stock <= 30) colorClass = "stock-yellow";
+
+        const width = Math.min(Math.max(stock, 5), 100);
+
+        const estadoColor = row.estado === "Inactivo"
+            ? "#dc2626"
+            : "#059669";
+
+        const card = document.createElement("div");
+        card.className = "medicine-card";
+
+        card.innerHTML = `
+            <div class="medicine-code">${row.codigo || "---"}</div>
+
+            <div class="medicine-name">
+                ${row.nombre || "Sin nombre"}
+            </div>
+
+            <div class="medicine-category">
+                ${row.categoria || "Sin categoría"}
+            </div>
+
+            <div class="medicine-details">
+
+                <div class="tooltip-row">
+                    <span class="tooltip-label">Stock</span>
+                    <span class="tooltip-value">${stock} unidades</span>
+                </div>
+
+                <div class="tooltip-row">
+                    <span class="tooltip-label">Presentación</span>
+                    <span class="tooltip-value">${row.presentacion || "No definida"}</span>
+                </div>
+
+                <div class="tooltip-row">
+                    <span class="tooltip-label">Estado</span>
+                    <span class="tooltip-value" style="color:${estadoColor}">
+                        ${row.estado || "Disponible"}
+                    </span>
+                </div>
+
+                <div class="tooltip-actions">
+                    <button class="tooltip-btn edit">Editar</button>
+                    <button class="tooltip-btn delete">Eliminar</button>
+                </div>
+
+            </div>
+
+            <div class="stock-bar">
+                <div class="stock-fill ${colorClass}"
+                     style="width:${width}%"></div>
+            </div>
+        `;
+
+        // Botón editar
+        card.querySelector(".edit").addEventListener("click", (e) => {
+            e.stopPropagation();
+            editRecord(row);
+        });
+
+        // Botón eliminar
+        card.querySelector(".delete").addEventListener("click", (e) => {
+            e.stopPropagation();
+            deleteRecord(row[config.id]);
+        });
+
+        grid.appendChild(card);
+    });
+
+    tableContainer.appendChild(grid);
+}
+/*=============================================
+TERMINAR FUNCION PARA EL MODO TRAJETA EN MEDICAMENTOS
+===============================================*/
 function openInvoiceDocument(saleId) {
     if (!Number.isInteger(Number(saleId)) || Number(saleId) <= 0) {
         showMessage("No se pudo identificar la factura.", true);
