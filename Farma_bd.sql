@@ -73,7 +73,7 @@ stock_minimo INT DEFAULT 5,
 restriccion ENUM('Sin Receta Medica','Con Receta Medica') NOT NULL,
 laboratorio VARCHAR(150),
 forma_venta ENUM('Caja','Unidad','Frasco','Blister','Sobre','Ampolla') NOT NULL,
-estado ENUM('Disponible','Inactivo') DEFAULT 'Disponible',
+estado ENUM('Disponible','Agotado','Inactivo') DEFAULT 'Disponible',
 fecha_registro DATETIME DEFAULT CURRENT_TIMESTAMP
         
 );
@@ -86,6 +86,7 @@ id_presentacion INT AUTO_INCREMENT PRIMARY KEY,
 id_medicamento INT NOT NULL,
 nombre_presentacion VARCHAR(150) NOT NULL,
 precio_venta DECIMAL(10,2) NOT NULL,
+unidades_stock INT NOT NULL DEFAULT 1,
 estado ENUM('Activa','Inactiva') DEFAULT 'Activa',
 UNIQUE (id_medicamento, nombre_presentacion),
 FOREIGN KEY (id_medicamento) REFERENCES medicamentos(id_medicamento)

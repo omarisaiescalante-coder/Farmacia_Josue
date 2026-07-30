@@ -16,7 +16,11 @@ const message = document.getElementById("message");
 const reportTable = document.getElementById("reportTable");
 let messageTimer = null;
 
-if (!user || user.rol !== "Administrador") {
+const canViewReport =
+    user?.rol === "Administrador" ||
+    (user?.rol === "Cajero" && reportType === "ventas");
+
+if (!canViewReport) {
     window.alert("No tiene permiso para consultar este reporte.");
     window.location.replace("index.html");
 } else {

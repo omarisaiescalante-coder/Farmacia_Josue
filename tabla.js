@@ -16,6 +16,7 @@ let medicineCatalog = [];
 let selectedSaleMedicineId = null;
 let lotMedicineCatalog = [];
 let selectedLotMedicine = null;
+let presentationStockSchemaPromise = null;
 let messageTimer = null;
 const SALES_TAX_RATE = 0.15;
 let user = ipcRenderer.sendSync("session:get-user");
@@ -106,6 +107,79 @@ Buscador exclusivo para Usuarios y Medicamentos.
 Se coloca debajo del formulario y antes de los registros.
 */
 createSearchSection();
+
+function ensurePresentationStockSchema() {
+    if (!presentationStockSchemaPromise) {
+        presentationStockSchemaPromise = (async () => {
+            const [columns] = await db.query(
+                `SELECT COLUMN_NAME
+                 FROM INFORMATION_SCHEMA.COLUMNS
+                 WHERE TABLE_SCHEMA = DATABASE()
+                   AND TABLE_NAME = 'medicamento_presentaciones'
+                   AND COLUMN_NAME = 'unidades_stock'`
+            );
+            if (!columns.length) {
+                await db.query(
+                    `ALTER TABLE medicamento_presentaciones
+                     ADD COLUMN unidades_stock INT NOT NULL DEFAULT 1
+                     AFTER precio_venta`
+                );
+            }
+        })().catch((error) => {
+            presentationStockSchemaPromise = null;
+            throw error;
+        });
+    }
+    return presentationStockSchemaPromise;
+}
+
+function getPresentationStockUnits(presentationName, medicinePresentation = "") {
+    const name = String(presentationName || "").trim().toLocaleLowerCase("es");
+    const description = String(medicinePresentation || "")
+        .trim()
+        .toLocaleLowerCase("es");
+    const explicitQuantity = name.match(/\b(?:x|de)\s*(\d+)\b/);
+
+    if (explicitQuantity) {
+        return Math.max(1, Number(explicitQuantity[1]));
+    }
+    if (name.includes("unidad")) {
+        return 1;
+    }
+
+    const packageQuantity = description.match(
+        /\b(?:caja|frasco)\s+de\s+(\d+)\s+(?:tabletas?|capsulas?|cápsulas?|ampollas?|unidades?)\b/
+    );
+    const unitsPerPackage = packageQuantity
+        ? Math.max(1, Number(packageQuantity[1]))
+        : 1;
+
+    if (name.includes("caja")) {
+        return unitsPerPackage;
+    }
+    if (name.includes("blister") || name.includes("blíster")) {
+        return Math.min(10, unitsPerPackage);
+    }
+    return 1;
+}
+
+function getMedicineStockDisplay(medicine, preferredPresentation = "Caja") {
+    const presentation = medicine.presentations.find(
+        (item) =>
+            item.nombre.toLocaleLowerCase("es") ===
+            preferredPresentation.toLocaleLowerCase("es")
+    ) || medicine.presentations[0];
+    const unitsPerPresentation = Math.max(
+        1,
+        Number(presentation?.unidades_stock) || 1
+    );
+    const amount = medicine.stock_total / unitsPerPresentation;
+    const formattedAmount = Number.isInteger(amount)
+        ? String(amount)
+        : amount.toFixed(2);
+    const presentationName = presentation?.nombre || "Unidad";
+    return `${formattedAmount} ${presentationName.toLocaleLowerCase("es")}`;
+}
 
 function createSearchSection() {
     const searchOptions = {
@@ -1184,13 +1258,15 @@ function createSaleItemsSection() {
 
 async function loadSaleMedicineCatalog() {
     try {
+        await ensurePresentationStockSchema();
         const [catalogRows] = await db.query(
-            `SELECT m.id_medicamento, m.codigo, m.nombre,
+            `SELECT m.id_medicamento, m.codigo, m.nombre, m.presentacion,
                     m.precio_venta, m.stock_total, m.restriccion,
                     m.estado,
                     mp.id_presentacion,
                     mp.nombre_presentacion,
-                    mp.precio_venta AS precio_presentacion
+                    mp.precio_venta AS precio_presentacion,
+                    mp.unidades_stock
              FROM medicamentos m
              LEFT JOIN medicamento_presentaciones mp
                 ON mp.id_medicamento = m.id_medicamento
@@ -1205,6 +1281,7 @@ async function loadSaleMedicineCatalog() {
                     id_medicamento: row.id_medicamento,
                     codigo: row.codigo,
                     nombre: row.nombre,
+                    presentacion_base: row.presentacion,
                     precio_venta: Number(row.precio_venta),
                     stock_total: Number(row.stock_total),
                     restriccion: row.restriccion,
@@ -1217,6 +1294,14 @@ async function loadSaleMedicineCatalog() {
                     id_presentacion: row.id_presentacion,
                     nombre: row.nombre_presentacion,
                     precio: Number(row.precio_presentacion),
+                    unidades_stock: Math.max(
+                        1,
+                        Number(row.unidades_stock) || 1,
+                        getPresentationStockUnits(
+                            row.nombre_presentacion,
+                            row.presentacion
+                        )
+                    ),
                 });
             }
         });
@@ -1288,7 +1373,8 @@ function renderMedicineSuggestions(searchValue) {
             : medicine.precio_venta;
         detail.textContent = medicine.stock_total <= 0
             ? "Agotado"
-            : `Stock: ${medicine.stock_total} | Desde: L ${startingPrice.toFixed(2)}`;
+            : `Stock: ${getMedicineStockDisplay(medicine)} | ` +
+              `Desde: L ${startingPrice.toFixed(2)}`;
         if (
             medicine.stock_total > 0 &&
             medicine.restriccion === "Con Receta Medica"
@@ -1357,7 +1443,13 @@ function updateSalePresentationPrice() {
     );
     document.getElementById("salePresentationPrice").textContent =
         presentation
-            ? `Precio seleccionado: L ${presentation.precio.toFixed(2)}`
+            ? `Precio seleccionado: L ${presentation.precio.toFixed(2)} | ` +
+              `Descuenta ${presentation.unidades_stock} ` +
+              `unidad${presentation.unidades_stock === 1 ? "" : "es"} del stock | ` +
+              `Disponible: ${getMedicineStockDisplay(
+                  medicine,
+                  presentation.nombre
+              )}`
             : "";
 }
 
@@ -1421,17 +1513,23 @@ async function addMedicineToSale() {
             item.id_medicamento === medicine.id_medicamento &&
             item.id_presentacion === presentation.id_presentacion
     );
-    const medicineQuantity = saleItems
+    const usedStock = saleItems
         .filter(
             (item) =>
                 item.id_medicamento === medicine.id_medicamento
         )
-        .reduce((sum, item) => sum + item.cantidad, 0);
-    const totalQuantity = quantity + medicineQuantity;
+        .reduce((sum, item) => sum + item.cantidad * item.unidades_stock, 0);
+    const requestedStock = quantity * presentation.unidades_stock;
+    const totalStock = requestedStock + usedStock;
 
-    if (totalQuantity > medicine.stock_total) {
+    if (totalStock > medicine.stock_total) {
+        const availablePresentations = Math.floor(
+            (medicine.stock_total - usedStock) /
+            presentation.unidades_stock
+        );
         showMessage(
-            `Solo hay ${medicine.stock_total} unidades disponibles.`,
+            `Solo hay ${Math.max(0, availablePresentations)} ` +
+            `${presentation.nombre.toLocaleLowerCase("es")} disponibles.`,
             true
         );
         return;
@@ -1445,7 +1543,7 @@ async function addMedicineToSale() {
     }
 
     if (existing) {
-        existing.cantidad = totalQuantity;
+        existing.cantidad += quantity;
         existing.subtotal =
             existing.cantidad * existing.precio_unitario;
     } else {
@@ -1455,6 +1553,7 @@ async function addMedicineToSale() {
             nombre: medicine.nombre,
             id_presentacion: presentation.id_presentacion,
             presentacion: presentation.nombre,
+            unidades_stock: presentation.unidades_stock,
             cantidad: quantity,
             precio_unitario: presentation.precio,
             restriccion: medicine.restriccion,
@@ -1551,7 +1650,7 @@ function getMedicineDisplay(medicine) {
         (
             medicine.stock_total <= 0
                 ? " | Agotado"
-                : ` | Stock: ${medicine.stock_total}`
+                : ` | Stock: ${getMedicineStockDisplay(medicine)}`
         ) +
         ` | Desde L ${startingPrice.toFixed(2)}`
     );
@@ -2883,19 +2982,32 @@ async function saveSaleTransaction(data) {
             }
 
             const [oldItems] = await connection.execute(
-                `SELECT id_medicamento, cantidad
-                 FROM detalles_venta
+                `SELECT dv.id_medicamento, dv.cantidad, dv.presentacion,
+                        m.presentacion AS presentacion_base,
+                        mp.unidades_stock
+                 FROM detalles_venta dv
+                 INNER JOIN medicamentos m
+                    ON m.id_medicamento = dv.id_medicamento
+                 LEFT JOIN medicamento_presentaciones mp
+                    ON mp.id_presentacion = dv.id_presentacion
                  WHERE id_venta = ?`,
                 [editingId]
             );
 
             for (const item of oldItems) {
+                const restoredStock = item.cantidad * Math.max(
+                    Number(item.unidades_stock) || 1,
+                    getPresentationStockUnits(
+                        item.presentacion,
+                        item.presentacion_base
+                    )
+                );
                 await connection.execute(
                     `UPDATE medicamentos
                      SET stock_total = stock_total + ?,
                          estado = 'Disponible'
                      WHERE id_medicamento = ?`,
-                    [item.cantidad, item.id_medicamento]
+                    [restoredStock, item.id_medicamento]
                 );
             }
 
@@ -2914,7 +3026,7 @@ async function saveSaleTransaction(data) {
                 )
                 .reduce(
                     (sum, saleItem) =>
-                        sum + saleItem.cantidad,
+                        sum + saleItem.cantidad * saleItem.unidades_stock,
                     0
                 );
             const [stockRows] = await connection.execute(
@@ -3000,8 +3112,8 @@ async function saveSaleTransaction(data) {
                      stock_total = stock_total - ?
                  WHERE id_medicamento = ?`,
                 [
-                    item.cantidad,
-                    item.cantidad,
+                    item.cantidad * item.unidades_stock,
+                    item.cantidad * item.unidades_stock,
                     item.id_medicamento,
                 ]
             );
@@ -3056,12 +3168,15 @@ async function editRecord(row) {
     if (moduleName === "ventas") {
         const [details] = await db.execute(
             `SELECT dv.id_medicamento, m.codigo,
-                    m.nombre, m.restriccion, dv.cantidad,
+                    m.nombre, m.restriccion, m.presentacion AS presentacion_base,
+                    dv.cantidad,
                     dv.id_presentacion, dv.presentacion,
-                    dv.precio_unitario, dv.subtotal
+                    dv.precio_unitario, dv.subtotal, mp.unidades_stock
              FROM detalles_venta dv
              INNER JOIN medicamentos m
                 ON dv.id_medicamento = m.id_medicamento
+             LEFT JOIN medicamento_presentaciones mp
+                ON mp.id_presentacion = dv.id_presentacion
              WHERE dv.id_venta = ?`,
             [editingId]
         );
@@ -3069,6 +3184,13 @@ async function editRecord(row) {
         saleItems = details.map((item) => ({
             ...item,
             cantidad: Number(item.cantidad),
+            unidades_stock: Math.max(
+                Number(item.unidades_stock) || 1,
+                getPresentationStockUnits(
+                    item.presentacion,
+                    item.presentacion_base
+                )
+            ),
             precio_unitario: Number(item.precio_unitario),
             subtotal: Number(item.subtotal),
         }));
@@ -3088,7 +3210,7 @@ async function deleteRecord(id) {
         );
         return;
     }
-    if (!window.confirm("¿Desea eliminar este registro?")) return;
+    if (!(await confirmDeleteRecord())) return;
     try {
         if (moduleName === "ventas") {
             await deleteSaleTransaction(id);
@@ -3106,6 +3228,64 @@ async function deleteRecord(id) {
     }
 }
 
+function confirmDeleteRecord() {
+    return new Promise((resolve) => {
+        const dialog = document.createElement("dialog");
+        dialog.className = "delete-confirm-dialog";
+        dialog.innerHTML = `
+            <section class="delete-confirm-card">
+                <header class="delete-confirm-header">
+                    <span class="delete-confirm-icon" aria-hidden="true">
+                        <svg viewBox="0 0 24 24">
+                            <path d="M4 7h16M9 7V4h6v3M7 7l1 13h8l1-13"></path>
+                            <path d="M10 11v5M14 11v5"></path>
+                        </svg>
+                    </span>
+                    <span>
+                        <span class="delete-confirm-eyebrow">
+                            Confirmar eliminaci&oacute;n
+                        </span>
+                        <strong>&iquest;Eliminar este registro?</strong>
+                    </span>
+                </header>
+                <div class="delete-confirm-body">
+                    <p>Esta acci&oacute;n quitar&aacute; el registro seleccionado.</p>
+                    <small>Puede cancelar para conservar la informaci&oacute;n.</small>
+                </div>
+                <footer class="delete-confirm-actions">
+                    <button data-action="cancel" type="button"
+                        class="btn btn-outline-secondary">Cancelar</button>
+                    <button data-action="confirm" type="button"
+                        class="btn btn-danger fw-semibold">S&iacute;, eliminar</button>
+                </footer>
+            </section>`;
+
+        let completed = false;
+        const finish = (result) => {
+            if (completed) return;
+            completed = true;
+            dialog.close();
+            dialog.remove();
+            resolve(result);
+        };
+
+        dialog.querySelector('[data-action="confirm"]')
+            .addEventListener("click", () => finish(true));
+        dialog.querySelector('[data-action="cancel"]')
+            .addEventListener("click", () => finish(false));
+        dialog.addEventListener("cancel", (event) => {
+            event.preventDefault();
+            finish(false);
+        });
+        dialog.addEventListener("click", (event) => {
+            if (event.target === dialog) finish(false);
+        });
+
+        document.body.appendChild(dialog);
+        dialog.showModal();
+    });
+}
+
 async function deleteSaleTransaction(id) {
     const connection = await db.getConnection();
 
@@ -3121,19 +3301,32 @@ async function deleteSaleTransaction(id) {
         );
         const sale = sales[0];
         const [items] = await connection.execute(
-            `SELECT id_medicamento, cantidad
-             FROM detalles_venta
+            `SELECT dv.id_medicamento, dv.cantidad, dv.presentacion,
+                    m.presentacion AS presentacion_base,
+                    mp.unidades_stock
+             FROM detalles_venta dv
+             INNER JOIN medicamentos m
+                ON m.id_medicamento = dv.id_medicamento
+             LEFT JOIN medicamento_presentaciones mp
+                ON mp.id_presentacion = dv.id_presentacion
              WHERE id_venta = ?`,
             [id]
         );
 
         for (const item of items) {
+            const restoredStock = item.cantidad * Math.max(
+                Number(item.unidades_stock) || 1,
+                getPresentationStockUnits(
+                    item.presentacion,
+                    item.presentacion_base
+                )
+            );
             await connection.execute(
                 `UPDATE medicamentos
                  SET stock_total = stock_total + ?,
                      estado = 'Disponible'
                  WHERE id_medicamento = ?`,
-                [item.cantidad, item.id_medicamento]
+                [restoredStock, item.id_medicamento]
             );
         }
 
@@ -3347,9 +3540,11 @@ function getLocalDateValue(date = new Date()) {
 }
 
 async function loadLotMedicineCatalog() {
+    await ensurePresentationStockSchema();
     const [catalog] = await db.query(
         `SELECT m.id_medicamento, m.codigo, m.nombre, m.stock_total,
-                m.laboratorio, mp.nombre_presentacion, mp.precio_venta
+                m.laboratorio, mp.nombre_presentacion, mp.precio_venta,
+                mp.unidades_stock
          FROM medicamentos m
          LEFT JOIN medicamento_presentaciones mp
             ON mp.id_medicamento = m.id_medicamento
@@ -3372,6 +3567,7 @@ async function loadLotMedicineCatalog() {
             medicines.get(row.id_medicamento).presentations.push({
                 nombre: row.nombre_presentacion,
                 precio: Number(row.precio_venta),
+                unidades_stock: Math.max(1, Number(row.unidades_stock) || 1),
             });
         }
     });
@@ -3427,10 +3623,26 @@ function updateLotDisplayedStock() {
     const quantity = Number(
         document.getElementById("cantidad_inicial")?.value || 0
     );
-    stock.value = String(
-        Number(selectedLotMedicine?.stock_total || 0) +
-        (Number.isFinite(quantity) ? quantity : 0)
-    );
+    const entryUnits = getLotEntryStockUnits();
+    const currentStockInPresentation =
+        Number(selectedLotMedicine?.stock_total || 0) / entryUnits;
+    const displayedStock =
+        currentStockInPresentation +
+        (Number.isFinite(quantity) ? quantity : 0);
+    stock.value = Number.isInteger(displayedStock)
+        ? String(displayedStock)
+        : displayedStock.toFixed(2);
+
+    const presentation =
+        document.getElementById("lotEntryPresentation")?.value || "";
+    const stockLabel = stock
+        .closest("div")
+        ?.querySelector(`label[for="stock_total"]`);
+    if (stockLabel) {
+        stockLabel.textContent = presentation
+            ? `Stock total en ${presentation.toLocaleLowerCase("es")}`
+            : "Stock total";
+    }
 }
 
 function updateLotTotalPurchasePrice() {
@@ -3449,69 +3661,230 @@ function renderLotPresentations(presentations = []) {
     const container = document.getElementById("lotPresentations");
     if (!container) return;
     container.replaceChildren();
+    const blister = presentations.find((item) =>
+        item.nombre.toLocaleLowerCase("es").includes("blister") ||
+        item.nombre.toLocaleLowerCase("es").includes("blíster")
+    );
+    const box = presentations.find((item) =>
+        item.nombre.toLocaleLowerCase("es").includes("caja")
+    );
+    const unitsPerBlister = Math.max(
+        1,
+        Number(blister?.unidades_stock) || 1
+    );
+    const blistersPerBox = box
+        ? Math.max(
+            1,
+            Math.round(Number(box.unidades_stock) / unitsPerBlister)
+        )
+        : 1;
+    document.getElementById("lotUnitsPerBlister").value =
+        String(unitsPerBlister);
+    document.getElementById("lotBlistersPerBox").value =
+        String(blistersPerBox);
     presentations.forEach((presentation) => {
-        addLotPresentationRow(presentation.nombre, presentation.precio);
+        addLotPresentationRow(
+            presentation.nombre,
+            presentation.precio,
+            presentation.unidades_stock
+        );
     });
+    updateLotEntryPresentationOptions();
+    updateLotSingleSalePrice();
+    updateLotConversionSummary();
 }
 
-function addLotPresentationRow(name = "", price = "") {
+function addLotPresentationRow(name = "", price = "", stockUnits = "") {
     const container = document.getElementById("lotPresentations");
     if (!container) return;
     const row = document.createElement("div");
-    row.className = "col-12 d-flex gap-2";
+    row.className = "col-12 row g-2 align-items-end";
     row.innerHTML = `
-        <div class="position-relative flex-grow-1">
-            <input class="form-control lot-presentation-name"
-                autocomplete="off" placeholder="Forma de venta">
-            <div class="lot-dropdown lot-sale-form-options d-none"></div>
-        </div>
-        <input class="form-control lot-presentation-price"
+        <div class="col-12 col-md-5"><input
+            class="form-control lot-presentation-name"
+            list="lotSaleFormOptions" placeholder="Forma de venta"></div>
+        <div class="col-12 col-md-5"><input
+            class="form-control lot-presentation-price"
             type="number" min="0.01" step="0.01"
-            placeholder="Precio de venta">
-        <button class="btn btn-outline-danger" type="button">Quitar</button>`;
-    const nameInput = row.querySelector(".lot-presentation-name");
-    const suggestions = row.querySelector(".lot-sale-form-options");
-    const saleForms = ["Caja", "Unidad", "Frasco", "Blister", "Sobre", "Ampolla"];
-    const showSaleForms = () => {
-        const search = nameInput.value.trim().toLocaleLowerCase("es");
-        const matches = saleForms.filter((item) =>
-            item.toLocaleLowerCase("es").includes(search)
-        );
-        suggestions.replaceChildren();
-        matches.forEach((item) => {
-            const option = document.createElement("button");
-            option.type = "button";
-            option.className = "lot-dropdown-option";
-            option.textContent = item;
-            option.addEventListener("mousedown", (event) => {
-                event.preventDefault();
-                nameInput.value = item;
-                suggestions.classList.add("d-none");
-            });
-            suggestions.appendChild(option);
-        });
-        suggestions.classList.toggle("d-none", matches.length === 0);
-    };
-    nameInput.value = name;
-    nameInput.addEventListener("input", showSaleForms);
-    nameInput.addEventListener("focus", showSaleForms);
-    nameInput.addEventListener("blur", () => {
-        setTimeout(() => suggestions.classList.add("d-none"), 150);
-    });
+            placeholder="Precio de venta"></div>
+        <input class="lot-presentation-units" type="hidden">
+        <div class="col-12 col-md-2"><button
+            class="btn btn-outline-danger w-100"
+            type="button">Quitar</button></div>`;
+    row.querySelector(".lot-presentation-name").value = name;
     row.querySelector(".lot-presentation-price").value = price;
-    row.querySelector("button").addEventListener("click", () => row.remove());
+    row.querySelector(".lot-presentation-units").value = stockUnits;
+    row.querySelector(".lot-presentation-name").addEventListener(
+        "input",
+        updateLotPresentationConversions
+    );
+    row.querySelector("button").addEventListener("click", () => {
+        row.remove();
+        updateLotEntryPresentationOptions();
+        updateLotConversionSummary();
+    });
     container.appendChild(row);
+    updateLotPresentationConversions();
 }
 
 function getLotPresentations() {
-    return [...document.querySelectorAll("#lotPresentations > div")]
+    const presentations =
+        [...document.querySelectorAll("#lotPresentations > div")]
         .map((row) => ({
             nombre: row.querySelector(".lot-presentation-name").value.trim(),
             precio: Number(
                 row.querySelector(".lot-presentation-price").value
             ),
+            unidades_stock: Number(
+                row.querySelector(".lot-presentation-units").value
+            ),
         }))
-        .filter((item) => item.nombre || item.precio);
+        .filter((item) => item.nombre || item.precio || item.unidades_stock);
+
+    const entryPresentation =
+        document.getElementById("lotEntryPresentation")?.value;
+    if (entryPresentation && entryPresentation !== "Caja") {
+        const price = Number(
+            document.getElementById("lotSingleSalePrice")?.value
+        );
+        const existing = presentations.find(
+            (item) =>
+                item.nombre.toLocaleLowerCase("es") ===
+                entryPresentation.toLocaleLowerCase("es")
+        );
+        if (existing) {
+            existing.precio = price;
+            existing.unidades_stock = 1;
+        } else {
+            presentations.push({
+                nombre: entryPresentation,
+                precio: price,
+                unidades_stock: 1,
+            });
+        }
+    }
+    return presentations;
+}
+
+function updateLotPresentationConversions() {
+    const blisters = Number(
+        document.getElementById("lotBlistersPerBox")?.value || 1
+    );
+    const units = Number(
+        document.getElementById("lotUnitsPerBlister")?.value || 1
+    );
+    document.querySelectorAll("#lotPresentations > div").forEach((row) => {
+        const name = row.querySelector(".lot-presentation-name")
+            .value.trim().toLocaleLowerCase("es");
+        const stockUnits = row.querySelector(".lot-presentation-units");
+        if (name.includes("caja")) {
+            stockUnits.value = String(blisters * units);
+        } else if (name.includes("blister") || name.includes("blíster")) {
+            stockUnits.value = String(units);
+        } else if (name.includes("unidad")) {
+            stockUnits.value = "1";
+        } else if (!stockUnits.value) {
+            stockUnits.value = "1";
+        }
+    });
+    updateLotEntryPresentationOptions();
+    updateLotDisplayedStock();
+    updateLotConversionSummary();
+}
+
+function updateLotEntryPresentationOptions() {
+    const select = document.getElementById("lotEntryPresentation");
+    if (!select) return;
+    const presentations = getLotPresentations()
+        .filter((item) => item.nombre && item.unidades_stock > 0);
+    if (!select.value) {
+        const preferred = ["Caja", "Ampolla", "Suero", "Frasco"].find(
+            (option) => presentations.some(
+                (item) =>
+                    item.nombre.toLocaleLowerCase("es") ===
+                    option.toLocaleLowerCase("es")
+            )
+        );
+        select.value = preferred || "";
+    }
+    toggleLotBoxOptions();
+}
+
+function toggleLotBoxOptions() {
+    const selectedPresentation =
+        document.getElementById("lotEntryPresentation")?.value || "";
+    const isBox = selectedPresentation === "Caja";
+    document.getElementById("lotBoxBlistersField")
+        ?.classList.toggle("d-none", !isBox);
+    document.getElementById("lotBoxUnitsField")
+        ?.classList.toggle("d-none", !isBox);
+    document.getElementById("lotConversionSummary")
+        ?.classList.toggle("d-none", !isBox);
+    document.getElementById("addLotPresentation")
+        ?.classList.toggle("d-none", !isBox);
+    document.getElementById("lotPresentations")
+        ?.classList.toggle("d-none", !isBox);
+    document.getElementById("lotSingleSalePriceField")
+        ?.classList.toggle(
+            "d-none",
+            !selectedPresentation || isBox
+        );
+
+    const quantityInput = document.getElementById("cantidad_inicial");
+    const quantityLabel = quantityInput
+        ?.closest("div")
+        ?.querySelector(`label[for="cantidad_inicial"]`);
+    if (quantityLabel) {
+        quantityLabel.textContent = isBox
+            ? "Cantidad de cajas a ingresar"
+            : "Cantidad a ingresar";
+    }
+    if (quantityInput) {
+        quantityInput.placeholder = isBox
+            ? "Número de cajas"
+            : "Cantidad";
+    }
+}
+
+function updateLotSingleSalePrice() {
+    const input = document.getElementById("lotSingleSalePrice");
+    const selected =
+        document.getElementById("lotEntryPresentation")?.value;
+    if (!input || !selected || selected === "Caja") {
+        if (input) input.value = "";
+        return;
+    }
+    const matchingRow = [...document.querySelectorAll(
+        "#lotPresentations > div"
+    )].find((row) =>
+        row.querySelector(".lot-presentation-name")
+            .value.trim().toLocaleLowerCase("es") ===
+        selected.toLocaleLowerCase("es")
+    );
+    input.value = matchingRow
+        ? matchingRow.querySelector(".lot-presentation-price").value
+        : "";
+}
+
+function getLotEntryStockUnits() {
+    const selected = document.getElementById("lotEntryPresentation")?.value;
+    return getLotPresentations().find(
+        (item) => item.nombre === selected
+    )?.unidades_stock || 1;
+}
+
+function updateLotConversionSummary() {
+    const summary = document.getElementById("lotConversionSummary");
+    if (!summary) return;
+    const blisters = Number(
+        document.getElementById("lotBlistersPerBox")?.value || 1
+    );
+    const units = Number(
+        document.getElementById("lotUnitsPerBlister")?.value || 1
+    );
+    summary.textContent =
+        `1 caja = ${blisters} blíster(es) = ${blisters * units} unidades. ` +
+        `Cada blíster contiene ${units} unidades.`;
 }
 
 function createQuickMedicineRegistration() {
@@ -3733,8 +4106,39 @@ function validateLotData(data) {
 }
 
 async function saveLotTransaction(data) {
-    const { quantity, purchasePrice, presentations } =
-        validateLotData(data);
+    if (!selectedLotMedicine) {
+        throw new Error("Seleccione un medicamento registrado.");
+    }
+    const quantity = Number(data.cantidad_inicial);
+    const purchasePrice = Number(data.precio_compra);
+    if (!Number.isInteger(quantity) || quantity <= 0) {
+        throw new Error("Ingrese una cantidad válida.");
+    }
+    if (!Number.isFinite(purchasePrice) || purchasePrice < 0) {
+        throw new Error("Ingrese un precio de compra válido.");
+    }
+    const presentations = getLotPresentations();
+    const entryPresentation =
+        document.getElementById("lotEntryPresentation")?.value;
+    if (!entryPresentation) {
+        throw new Error("Seleccione la presentación que está ingresando.");
+    }
+    if (entryPresentation === "Caja" && !presentations.length) {
+        throw new Error(
+            "Agregue al menos una forma de venta para la caja."
+        );
+    }
+    if (presentations.some((item) =>
+        !item.nombre ||
+        !(item.precio > 0) ||
+        !Number.isInteger(item.unidades_stock) ||
+        item.unidades_stock <= 0
+    )) {
+        throw new Error("Complete correctamente las formas de venta.");
+    }
+    const entryUnits = getLotEntryStockUnits();
+    const stockQuantity = quantity * entryUnits;
+
     const connection = await db.getConnection();
     try {
         await connection.beginTransaction();
@@ -3746,7 +4150,7 @@ async function saveLotTransaction(data) {
              VALUES (?, ?, ?, ?, ?, ?, ?, 'Disponible')`,
             [
                 selectedLotMedicine.id_medicamento, data.numero_lote,
-                quantity, quantity, data.fecha_fabricacion,
+                stockQuantity, stockQuantity, data.fecha_fabricacion,
                 data.fecha_vencimiento, purchasePrice,
             ]
         );
@@ -3756,19 +4160,23 @@ async function saveLotTransaction(data) {
                  precio_compra = ?,
                  estado = 'Disponible'
              WHERE id_medicamento = ?`,
-            [quantity, purchasePrice, selectedLotMedicine.id_medicamento]
+            [stockQuantity, purchasePrice, selectedLotMedicine.id_medicamento]
         );
         for (const item of presentations) {
             await connection.execute(
                 `INSERT INTO medicamento_presentaciones
-                    (id_medicamento, nombre_presentacion, precio_venta, estado)
-                 VALUES (?, ?, ?, 'Activa')
+                    (id_medicamento, nombre_presentacion, precio_venta,
+                     unidades_stock, estado)
+                 VALUES (?, ?, ?, ?, 'Activa')
                  ON DUPLICATE KEY UPDATE
-                    precio_venta = VALUES(precio_venta), estado = 'Activa'`,
+                    precio_venta = VALUES(precio_venta),
+                    unidades_stock = VALUES(unidades_stock),
+                    estado = 'Activa'`,
                 [
                     selectedLotMedicine.id_medicamento,
                     item.nombre,
                     item.precio,
+                    item.unidades_stock,
                 ]
             );
         }
@@ -3784,6 +4192,7 @@ async function saveLotTransaction(data) {
 /* ====================================================================================
 Configuración para el autocompletado y autorrelleno de distribuidores en Compras 
 ====================================================================================*/
+
 function configureDistributorAutocomplete() {
     const distributorInput = document.getElementById("id_distribuidor");
     if (!distributorInput) return;

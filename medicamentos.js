@@ -6,8 +6,9 @@ module.exports = {
     fields: [
         { name: "codigo", label: "Código", readOnly: true },
         { name: "nombre", label: "Nombre", required: true },
+        { name: "descripcion", label: "Descripción", type: "textarea", full: true },
         { name: "categoria", label: "Categoría" },
         { name: "presentacion", label: "Presentación", wide: true },
-        { name: "estado", label: "Estado", type: "select", options: ["Disponible","Inactivo"] }
+        { name: "estado", label: "Estado", type: "select", options: ["Disponible", "Agotado", "Inactivo"] }
     ]
 };
