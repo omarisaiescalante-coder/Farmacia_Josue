@@ -1992,6 +1992,106 @@ function confirmSaleData(details) {
     });
 }
 
+function confirmLotData(details) {
+    return new Promise((resolve) => {
+        const dialog = document.createElement("dialog");
+        dialog.className = "sale-confirm-dialog";
+        dialog.innerHTML = `
+            <form method="dialog" class="sale-confirm-card">
+                <header class="sale-confirm-header">
+                    <span class="sale-confirm-icon" aria-hidden="true">
+                        <svg viewBox="0 0 24 24">
+                            <path d="M5 3h14v18l-3-2-4 2-4-2-3 2V3Z"></path>
+                            <path d="M8 8h8M8 12h5"></path>
+                        </svg>
+                    </span>
+                    <span>
+                        <span class="sale-confirm-eyebrow">Confirmar lote</span>
+                        <strong>Verifique los datos</strong>
+                    </span>
+                </header>
+                <div class="sale-confirm-body">
+                    <p class="text-secondary mb-3">
+                        Revise la información antes de registrar el lote.
+                    </p>
+                    <div class="sale-confirm-client">
+                        <span>Medicamento</span>
+                        <span class="sale-confirm-client-data">
+                            <strong data-value="medicine"></strong>
+                            <small data-value="code"></small>
+                        </span>
+                    </div>
+                    <dl class="sale-confirm-summary">
+                        <div><dt>Número de lote</dt>
+                            <dd data-value="lotNumber"></dd></div>
+                        <div><dt>Cantidad a ingresar</dt>
+                            <dd data-value="quantity"></dd></div>
+                        <div><dt>Fecha de fabricación</dt>
+                            <dd data-value="manufactureDate"></dd></div>
+                        <div><dt>Fecha de vencimiento</dt>
+                            <dd data-value="expirationDate"></dd></div>
+                        <div><dt>Precio de compra</dt>
+                            <dd data-value="purchasePrice"></dd></div>
+                        <div><dt>Formas de venta</dt>
+                            <dd data-value="presentations"></dd></div>
+                    </dl>
+                    <div class="sale-confirm-total">
+                        <span>Precio de compra total</span>
+                        <strong data-value="total"></strong>
+                    </div>
+                </div>
+                <footer class="sale-confirm-actions">
+                    <button data-action="cancel" type="button"
+                        class="btn btn-outline-secondary">
+                        Volver y corregir
+                    </button>
+                    <button data-action="confirm" type="button"
+                        class="btn btn-success fw-semibold">
+                        Confirmar y registrar
+                    </button>
+                </footer>
+            </form>`;
+
+        const money = (value) => `L ${Number(value || 0).toFixed(2)}`;
+        const setValue = (name, value) => {
+            dialog.querySelector(`[data-value="${name}"]`).textContent =
+                value;
+        };
+        setValue("medicine", details.medicine);
+        setValue("code", `Código: ${details.code}`);
+        setValue("lotNumber", details.lotNumber);
+        setValue("quantity", String(details.quantity));
+        setValue("manufactureDate", details.manufactureDate);
+        setValue("expirationDate", details.expirationDate);
+        setValue("purchasePrice", money(details.purchasePrice));
+        setValue("presentations", details.presentations);
+        setValue("total", money(details.total));
+
+        let completed = false;
+        const finish = (result) => {
+            if (completed) return;
+            completed = true;
+            dialog.close();
+            dialog.remove();
+            resolve(result);
+        };
+        dialog.querySelector('[data-action="confirm"]')
+            .addEventListener("click", () => finish(true));
+        dialog.querySelector('[data-action="cancel"]')
+            .addEventListener("click", () => finish(false));
+        dialog.addEventListener("cancel", (event) => {
+            event.preventDefault();
+            finish(false);
+        });
+        dialog.addEventListener("click", (event) => {
+            if (event.target === dialog) finish(false);
+        });
+
+        document.body.appendChild(dialog);
+        dialog.showModal();
+    });
+}
+
 function formatValue(value) {
     if (value == null) return "";
     if (value instanceof Date) return value.toISOString().slice(0, 10);
@@ -2130,6 +2230,23 @@ async function saveRecord(event) {
         }
 
         if (moduleName === "lote") {
+            const lotDetails = validateLotData(data);
+            const confirmed = await confirmLotData({
+                medicine: selectedLotMedicine.nombre,
+                code: selectedLotMedicine.codigo,
+                lotNumber: data.numero_lote,
+                quantity: lotDetails.quantity,
+                manufactureDate: data.fecha_fabricacion,
+                expirationDate: data.fecha_vencimiento,
+                purchasePrice: lotDetails.purchasePrice,
+                presentations: lotDetails.presentations
+                    .map((item) => item.nombre)
+                    .join(", "),
+                total: lotDetails.quantity * lotDetails.purchasePrice,
+            });
+            if (!confirmed) {
+                return;
+            }
             await saveLotTransaction(data);
             showMessage("Lote e inventario registrados correctamente.");
             clearForm();
@@ -2826,6 +2943,8 @@ function clearForm() {
         document.getElementById("lotPresentations")?.replaceChildren();
         loadLotMedicineCatalog().then(() => {
             renderLotMedicineOptions();
+            document.getElementById("lotMedicineOptions")
+                ?.classList.add("d-none");
             renderQuickMedicineLaboratoryOptions();
         });
         loadNextLotNumber();
@@ -2836,14 +2955,50 @@ async function configureLotForm() {
     const medicineInput = document.getElementById("id_medicamento");
     const quantityInput = document.getElementById("cantidad_inicial");
     const purchasePriceInput = document.getElementById("precio_compra");
+    const manufactureDateInput =
+        document.getElementById("fecha_fabricacion");
+    const expirationDateInput =
+        document.getElementById("fecha_vencimiento");
     if (!medicineInput || !quantityInput || !purchasePriceInput) return;
 
+    if (manufactureDateInput) {
+        limitDateYearToFourDigits(manufactureDateInput);
+        manufactureDateInput.title =
+            "La fecha ingresada no puede ser superior a la actual.";
+        manufactureDateInput.addEventListener("change", () => {
+            const invalid = manufactureDateInput.value > getLocalDateValue();
+            const message = invalid
+                ? "La fecha ingresada no puede ser superior a la actual."
+                : "";
+            if (invalid) {
+                showMessage(message, true);
+            }
+        });
+    }
+    if (expirationDateInput) {
+        limitDateYearToFourDigits(expirationDateInput);
+        expirationDateInput.title =
+            "La fecha ingresada no puede ser inferior a la actual.";
+        expirationDateInput.addEventListener("change", () => {
+            const invalid = expirationDateInput.value < getLocalDateValue();
+            const message = invalid
+                ? "La fecha ingresada no puede ser inferior a la actual."
+                : "";
+            if (invalid) {
+                showMessage(message, true);
+            }
+        });
+    }
+
+    medicineInput.removeAttribute("list");
+    const medicineGroup = medicineInput.closest("div");
+    medicineGroup.classList.add("position-relative");
     let options = document.getElementById("lotMedicineOptions");
     if (!options) {
-        options = document.createElement("datalist");
+        options = document.createElement("div");
         options.id = "lotMedicineOptions";
-        medicineInput.setAttribute("list", options.id);
-        medicineInput.closest("div").appendChild(options);
+        options.className = "lot-dropdown d-none";
+        medicineGroup.appendChild(options);
     }
 
     const presentationsGroup =
@@ -2851,11 +3006,6 @@ async function configureLotForm() {
     if (presentationsGroup) {
         presentationsGroup.innerHTML = `
             <label class="form-label fw-semibold">Formas de Venta y Precios</label>
-            <datalist id="lotSaleFormOptions">
-                <option value="Caja"></option><option value="Unidad"></option>
-                <option value="Frasco"></option><option value="Blister"></option>
-                <option value="Sobre"></option><option value="Ampolla"></option>
-            </datalist>
             <div id="lotPresentations" class="row g-2"></div>
             <button id="addLotPresentation" type="button"
                 class="btn btn-outline-success btn-sm mt-2">
@@ -2868,6 +3018,7 @@ async function configureLotForm() {
     createQuickMedicineRegistration();
     medicineInput.addEventListener("input", () => {
         const value = medicineInput.value.trim().toLocaleLowerCase("es");
+        renderLotMedicineOptions(value);
         const medicine = lotMedicineCatalog.find(
             (item) =>
                 item.nombre.toLocaleLowerCase("es") === value ||
@@ -2886,6 +3037,12 @@ async function configureLotForm() {
             toggleQuickMedicineRegistration(Boolean(value) && !possible);
         }
     });
+    medicineInput.addEventListener("focus", () => {
+        renderLotMedicineOptions(medicineInput.value);
+    });
+    medicineInput.addEventListener("blur", () => {
+        setTimeout(() => options.classList.add("d-none"), 150);
+    });
     quantityInput.addEventListener("input", () => {
         updateLotDisplayedStock();
         updateLotTotalPurchasePrice();
@@ -2897,8 +3054,27 @@ async function configureLotForm() {
 
     await loadLotMedicineCatalog();
     renderLotMedicineOptions();
+    options.classList.add("d-none");
     renderQuickMedicineLaboratoryOptions();
     await loadNextLotNumber();
+}
+
+function limitDateYearToFourDigits(input) {
+    input.max = "9999-12-31";
+    input.addEventListener("input", () => {
+        const parts = input.value.split("-");
+        if (parts[0]?.length > 4) {
+            parts[0] = parts[0].slice(0, 4);
+            input.value = parts.join("-");
+        }
+    });
+}
+
+function getLocalDateValue(date = new Date()) {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, "0");
+    const day = String(date.getDate()).padStart(2, "0");
+    return `${year}-${month}-${day}`;
 }
 
 async function loadLotMedicineCatalog() {
@@ -2933,16 +3109,30 @@ async function loadLotMedicineCatalog() {
     lotMedicineCatalog = [...medicines.values()];
 }
 
-function renderLotMedicineOptions() {
+function renderLotMedicineOptions(searchValue = "") {
     const container = document.getElementById("lotMedicineOptions");
     if (!container) return;
     container.replaceChildren();
-    lotMedicineCatalog.forEach((medicine) => {
-        const option = document.createElement("option");
-        option.value = medicine.nombre;
-        option.label = `${medicine.codigo} | Stock: ${medicine.stock_total}`;
+    const search = searchValue.trim().toLocaleLowerCase("es");
+    const matches = lotMedicineCatalog.filter((medicine) =>
+        medicine.nombre.toLocaleLowerCase("es").includes(search) ||
+        medicine.codigo.toLocaleLowerCase("es").includes(search)
+    ).slice(0, 8);
+    matches.forEach((medicine) => {
+        const option = document.createElement("button");
+        option.type = "button";
+        option.className = "lot-dropdown-option";
+        option.innerHTML = `
+            <span>${medicine.nombre}</span>
+            <small>${medicine.codigo} · Stock: ${medicine.stock_total}</small>`;
+        option.addEventListener("mousedown", (event) => {
+            event.preventDefault();
+            selectLotMedicine(medicine);
+            container.classList.add("d-none");
+        });
         container.appendChild(option);
     });
+    container.classList.toggle("d-none", matches.length === 0);
 }
 
 function selectLotMedicine(medicine) {
@@ -3001,13 +3191,44 @@ function addLotPresentationRow(name = "", price = "") {
     const row = document.createElement("div");
     row.className = "col-12 d-flex gap-2";
     row.innerHTML = `
-        <input class="form-control lot-presentation-name"
-            list="lotSaleFormOptions" placeholder="Forma de venta">
+        <div class="position-relative flex-grow-1">
+            <input class="form-control lot-presentation-name"
+                autocomplete="off" placeholder="Forma de venta">
+            <div class="lot-dropdown lot-sale-form-options d-none"></div>
+        </div>
         <input class="form-control lot-presentation-price"
             type="number" min="0.01" step="0.01"
             placeholder="Precio de venta">
         <button class="btn btn-outline-danger" type="button">Quitar</button>`;
-    row.querySelector(".lot-presentation-name").value = name;
+    const nameInput = row.querySelector(".lot-presentation-name");
+    const suggestions = row.querySelector(".lot-sale-form-options");
+    const saleForms = ["Caja", "Unidad", "Frasco", "Blister", "Sobre", "Ampolla"];
+    const showSaleForms = () => {
+        const search = nameInput.value.trim().toLocaleLowerCase("es");
+        const matches = saleForms.filter((item) =>
+            item.toLocaleLowerCase("es").includes(search)
+        );
+        suggestions.replaceChildren();
+        matches.forEach((item) => {
+            const option = document.createElement("button");
+            option.type = "button";
+            option.className = "lot-dropdown-option";
+            option.textContent = item;
+            option.addEventListener("mousedown", (event) => {
+                event.preventDefault();
+                nameInput.value = item;
+                suggestions.classList.add("d-none");
+            });
+            suggestions.appendChild(option);
+        });
+        suggestions.classList.toggle("d-none", matches.length === 0);
+    };
+    nameInput.value = name;
+    nameInput.addEventListener("input", showSaleForms);
+    nameInput.addEventListener("focus", showSaleForms);
+    nameInput.addEventListener("blur", () => {
+        setTimeout(() => suggestions.classList.add("d-none"), 150);
+    });
     row.querySelector(".lot-presentation-price").value = price;
     row.querySelector("button").addEventListener("click", () => row.remove());
     container.appendChild(row);
@@ -3212,9 +3433,20 @@ async function loadNextLotNumber() {
     input.value = `LOT-${String(result[0].siguiente).padStart(4, "0")}`;
 }
 
-async function saveLotTransaction(data) {
+function validateLotData(data) {
     if (!selectedLotMedicine) {
         throw new Error("Seleccione un medicamento registrado.");
+    }
+    const today = getLocalDateValue();
+    if (data.fecha_fabricacion > today) {
+        throw new Error(
+            "La fecha ingresada no puede ser superior a la actual."
+        );
+    }
+    if (data.fecha_vencimiento < today) {
+        throw new Error(
+            "La fecha ingresada no puede ser inferior a la actual."
+        );
     }
     const quantity = Number(data.cantidad_inicial);
     const purchasePrice = Number(data.precio_compra);
@@ -3228,7 +3460,12 @@ async function saveLotTransaction(data) {
     if (presentations.some((item) => !item.nombre || !(item.precio > 0))) {
         throw new Error("Complete correctamente las formas de venta.");
     }
+    return { quantity, purchasePrice, presentations };
+}
 
+async function saveLotTransaction(data) {
+    const { quantity, purchasePrice, presentations } =
+        validateLotData(data);
     const connection = await db.getConnection();
     try {
         await connection.beginTransaction();
