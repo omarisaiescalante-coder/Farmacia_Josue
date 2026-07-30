@@ -3468,13 +3468,72 @@ async function configureLotForm() {
     if (presentationsGroup) {
         presentationsGroup.innerHTML = `
             <label class="form-label fw-semibold">Formas de Venta y Precios</label>
-            <div id="lotPresentations" class="row g-2"></div>
+            <div class="row g-2 mb-3">
+                <div id="lotBoxBlistersField" class="col-12 col-md-4 d-none">
+                    <label class="form-label">Blísteres por caja</label>
+                    <input id="lotBlistersPerBox" class="form-control"
+                        type="number" min="1" step="1" value="1">
+                </div>
+                <div id="lotBoxUnitsField" class="col-12 col-md-4 d-none">
+                    <label class="form-label">Unidades por blíster</label>
+                    <input id="lotUnitsPerBlister" class="form-control"
+                        type="number" min="1" step="1" value="1">
+                </div>
+                <div class="col-12 col-md-4">
+                    <label class="form-label">Presentación que ingresa</label>
+                    <select id="lotEntryPresentation"
+                        class="form-select" required>
+                        <option value="">Seleccione...</option>
+                        <option value="Caja">Caja</option>
+                        <option value="Ampolla">Ampolla</option>
+                        <option value="Suero">Suero</option>
+                        <option value="Frasco">Frasco</option>
+                    </select>
+                </div>
+                <div id="lotSingleSalePriceField"
+                    class="col-12 col-md-4 d-none">
+                    <label class="form-label" for="lotSingleSalePrice">
+                        Precio de venta
+                    </label>
+                    <input id="lotSingleSalePrice" class="form-control"
+                        type="number" min="0.01" step="0.01"
+                        placeholder="Precio de venta">
+                </div>
+            </div>
+            <div id="lotConversionSummary"
+                class="alert alert-info py-2 d-none">
+                Configure las equivalencias del empaque.
+            </div>
+            <datalist id="lotSaleFormOptions">
+                <option value="Caja"></option>
+                <option value="Unidad"></option>
+                <option value="Frasco"></option>
+                <option value="Blister"></option>
+                <option value="Sobre"></option>
+                <option value="Ampolla"></option>
+            </datalist>
+            <div id="lotPresentations" class="row g-2 d-none"></div>
             <button id="addLotPresentation" type="button"
-                class="btn btn-outline-success btn-sm mt-2">
+                class="btn btn-outline-success btn-sm mt-2 d-none">
                 Agregar forma de venta
             </button>`;
         document.getElementById("addLotPresentation")
             .addEventListener("click", () => addLotPresentationRow());
+        ["lotBlistersPerBox", "lotUnitsPerBlister"].forEach((id) => {
+            document.getElementById(id).addEventListener(
+                "input",
+                updateLotPresentationConversions
+            );
+        });
+        document.getElementById("lotEntryPresentation").addEventListener(
+            "change",
+            () => {
+                toggleLotBoxOptions();
+                updateLotSingleSalePrice();
+                updateLotDisplayedStock();
+                updateLotConversionSummary();
+            }
+        );
     }
 
     createQuickMedicineRegistration();
