@@ -635,6 +635,62 @@ body[data-report] .form-select {
     font-size: 0.87rem;
 }
 
+/* Iguala las sugerencias del módulo de lotes con los demás desplegables. */
+body[data-module="lote"] #id_medicamento,
+body[data-module="lote"] .lot-presentation-name {
+    font-weight: 400;
+}
+
+body[data-module="lote"] .lot-dropdown {
+    position: absolute;
+    z-index: 1050;
+    top: calc(100% + 4px);
+    right: 0;
+    left: 0;
+    max-height: 240px;
+    overflow-y: auto;
+    border: 1px solid #ccdcd7;
+    border-radius: 10px;
+    background: #fff;
+    box-shadow: 0 10px 24px rgba(8, 60, 54, 0.14);
+}
+
+body[data-module="lote"] .lot-dropdown-option {
+    display: block;
+    width: 100%;
+    padding: 0.65rem 0.8rem;
+    border: 0;
+    border-bottom: 1px solid #e6efec;
+    color: var(--fj-ink);
+    background: #fff;
+    font-size: 0.87rem;
+    font-weight: 400;
+    text-align: left;
+}
+
+body[data-module="lote"] .lot-dropdown-option:last-child {
+    border-bottom: 0;
+}
+
+body[data-module="lote"] .lot-dropdown-option:hover,
+body[data-module="lote"] .lot-dropdown-option:focus {
+    color: var(--fj-brand-700);
+    background: #edf8f4;
+    outline: 0;
+}
+
+body[data-module="lote"] .lot-dropdown-option span,
+body[data-module="lote"] .lot-dropdown-option small {
+    display: block;
+    font-weight: 400;
+}
+
+body[data-module="lote"] .lot-dropdown-option small {
+    margin-top: 0.1rem;
+    color: #687b75;
+    font-size: 0.76rem;
+}
+
 body[data-module] .form-control:focus,
 body[data-module] .form-select:focus,
 body[data-report] .form-control:focus,
