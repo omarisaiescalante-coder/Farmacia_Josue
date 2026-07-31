@@ -641,6 +641,12 @@ body[data-module="lote"] .lot-presentation-name {
     font-weight: 400;
 }
 
+body[data-module="lote"] .form-select,
+body[data-module="lote"] .form-select option {
+    color: var(--fj-ink);
+    background-color: #fff;
+}
+
 body[data-module="lote"] .lot-dropdown {
     position: absolute;
     z-index: 1050;
@@ -890,6 +896,10 @@ body[data-report] .table > tbody > tr > td {
     }
 
     #showQuickDistributorForm {
+        width: 100%;
+    }
+
+    #showQuickMedicineForm {
         width: 100%;
     }
 }

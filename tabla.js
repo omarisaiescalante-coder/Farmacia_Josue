@@ -3426,30 +3426,38 @@ async function configureLotForm() {
     if (manufactureDateInput) {
         limitDateYearToFourDigits(manufactureDateInput);
         manufactureDateInput.title =
-            "La fecha ingresada no puede ser superior a la actual.";
-        manufactureDateInput.addEventListener("change", () => {
-            const invalid = manufactureDateInput.value > getLocalDateValue();
-            const message = invalid
-                ? "La fecha ingresada no puede ser superior a la actual."
-                : "";
-            if (invalid) {
-                showMessage(message, true);
-            }
-        });
+            "La fecha tiene que ser inferior a la actual.";
+        const validateManufactureDate = () => validateCompletedLotDate(
+            manufactureDateInput,
+            (value, today) => value >= today,
+            "La fecha de fabricación tiene que ser inferior a la actual."
+        );
+        manufactureDateInput.addEventListener(
+            "input",
+            validateManufactureDate
+        );
+        manufactureDateInput.addEventListener(
+            "change",
+            validateManufactureDate
+        );
     }
     if (expirationDateInput) {
         limitDateYearToFourDigits(expirationDateInput);
         expirationDateInput.title =
-            "La fecha ingresada no puede ser inferior a la actual.";
-        expirationDateInput.addEventListener("change", () => {
-            const invalid = expirationDateInput.value < getLocalDateValue();
-            const message = invalid
-                ? "La fecha ingresada no puede ser inferior a la actual."
-                : "";
-            if (invalid) {
-                showMessage(message, true);
-            }
-        });
+            "La fecha tiene que ser superior a la actual.";
+        const validateExpirationDate = () => validateCompletedLotDate(
+            expirationDateInput,
+            (value, today) => value <= today,
+            "La fecha de vencimiento tiene que ser superior a la actual."
+        );
+        expirationDateInput.addEventListener(
+            "input",
+            validateExpirationDate
+        );
+        expirationDateInput.addEventListener(
+            "change",
+            validateExpirationDate
+        );
     }
 
     medicineInput.removeAttribute("list");
@@ -3504,14 +3512,6 @@ async function configureLotForm() {
                 class="alert alert-info py-2 d-none">
                 Configure las equivalencias del empaque.
             </div>
-            <datalist id="lotSaleFormOptions">
-                <option value="Caja"></option>
-                <option value="Unidad"></option>
-                <option value="Frasco"></option>
-                <option value="Blister"></option>
-                <option value="Sobre"></option>
-                <option value="Ampolla"></option>
-            </datalist>
             <div id="lotPresentations" class="row g-2 d-none"></div>
             <button id="addLotPresentation" type="button"
                 class="btn btn-outline-success btn-sm mt-2 d-none">
@@ -3759,9 +3759,18 @@ function addLotPresentationRow(name = "", price = "", stockUnits = "") {
     const row = document.createElement("div");
     row.className = "col-12 row g-2 align-items-end";
     row.innerHTML = `
-        <div class="col-12 col-md-5"><input
-            class="form-control lot-presentation-name"
-            list="lotSaleFormOptions" placeholder="Forma de venta"></div>
+        <div class="col-12 col-md-5">
+            <select class="form-select lot-presentation-name">
+                <option value="">Seleccione una forma de venta...</option>
+                <option value="Caja">Caja</option>
+                <option value="Unidad">Unidad</option>
+                <option value="Frasco">Frasco</option>
+                <option value="Blister">Blíster</option>
+                <option value="Sobre">Sobre</option>
+                <option value="Ampolla">Ampolla</option>
+                <option value="Suero">Suero</option>
+            </select>
+        </div>
         <div class="col-12 col-md-5"><input
             class="form-control lot-presentation-price"
             type="number" min="0.01" step="0.01"
@@ -3770,7 +3779,13 @@ function addLotPresentationRow(name = "", price = "", stockUnits = "") {
         <div class="col-12 col-md-2"><button
             class="btn btn-outline-danger w-100"
             type="button">Quitar</button></div>`;
-    row.querySelector(".lot-presentation-name").value = name;
+    const presentationSelect = row.querySelector(".lot-presentation-name");
+    if (name && ![...presentationSelect.options].some(
+        (option) => option.value === name
+    )) {
+        presentationSelect.appendChild(new Option(name, name));
+    }
+    presentationSelect.value = name;
     row.querySelector(".lot-presentation-price").value = price;
     row.querySelector(".lot-presentation-units").value = stockUnits;
     row.querySelector(".lot-presentation-name").addEventListener(
@@ -3946,7 +3961,7 @@ function updateLotConversionSummary() {
         `Cada blíster contiene ${units} unidades.`;
 }
 
-function createQuickMedicineRegistration() {
+function createQuickMedicineRegistrationLegacy() {
     if (document.getElementById("quickMedicineRegistration")) return;
     const container = document.createElement("div");
     container.id = "quickMedicineRegistration";
@@ -4006,6 +4021,160 @@ function createQuickMedicineRegistration() {
         .addEventListener("click", saveQuickMedicine);
 }
 
+function createQuickMedicineRegistration() {
+    if (document.getElementById("quickMedicineRegistration")) return;
+    const container = document.createElement("div");
+    container.id = "quickMedicineRegistration";
+    container.className = "col-12 d-none";
+    container.innerHTML = `
+        <div class="card quick-client-card quick-medicine-card overflow-hidden">
+            <div class="quick-client-accent" aria-hidden="true"></div>
+            <div class="card-body p-4">
+                <div class="d-flex flex-wrap justify-content-between align-items-center gap-3">
+                    <div class="d-flex align-items-center gap-3">
+                        <span class="quick-client-icon d-inline-flex align-items-center justify-content-center rounded-circle"
+                            aria-hidden="true">
+                            <svg viewBox="0 0 24 24">
+                                <path d="M10.5 4.5 19.5 13.5"></path>
+                                <path d="M6.3 17.7a4.24 4.24 0 0 1 0-6l5.4-5.4a4.24 4.24 0 0 1 6 6l-5.4 5.4a4.24 4.24 0 0 1-6 0Z"></path>
+                                <path d="m8.8 9.2 6 6"></path>
+                            </svg>
+                        </span>
+                        <div>
+                            <span class="badge quick-client-badge rounded-pill mb-2">
+                                Registro rápido
+                            </span>
+                            <h3 class="h5 fw-bold mb-1">
+                                Medicamento no registrado
+                            </h3>
+                            <p class="small text-secondary mb-0">
+                                Puede registrarlo sin salir del ingreso del lote.
+                            </p>
+                        </div>
+                    </div>
+                    <button id="showQuickMedicineForm"
+                        class="btn btn-warning fw-semibold px-3" type="button">
+                        Registrar nuevo medicamento
+                    </button>
+                </div>
+                <div id="quickMedicineFields"
+                    class="row g-3 mt-4 pt-3 border-top d-none">
+                    <div class="col-12">
+                        <p class="small text-secondary mb-0">
+                            Los campos marcados con <span class="text-danger">*</span>
+                            son obligatorios.
+                        </p>
+                    </div>
+                    <div class="col-12 col-md-6">
+                        <label class="form-label fw-semibold" for="quickMedicineName">
+                            Nombre <span class="text-danger">*</span>
+                        </label>
+                        <input id="quickMedicineName" class="form-control" type="text">
+                    </div>
+                    <div class="col-12 col-md-6">
+                        <label class="form-label fw-semibold" for="quickMedicineLaboratory">
+                            Laboratorio <span class="text-danger">*</span>
+                        </label>
+                        <div class="position-relative">
+                            <input id="quickMedicineLaboratory"
+                                class="form-control" type="text"
+                                autocomplete="off">
+                            <div id="quickMedicineLaboratoryOptions"
+                                class="lot-dropdown d-none"></div>
+                        </div>
+                    </div>
+                    <div class="col-12 col-md-6">
+                        <label class="form-label fw-semibold" for="quickMedicineCategory">
+                            Categoría
+                        </label>
+                        <input id="quickMedicineCategory" class="form-control" type="text">
+                    </div>
+                    <div class="col-12 col-md-6">
+                        <label class="form-label fw-semibold" for="quickMedicineRestriction">
+                            Restricción <span class="text-danger">*</span>
+                        </label>
+                        <select id="quickMedicineRestriction" class="form-select">
+                            <option value="">Seleccione...</option>
+                            <option value="Sin Receta Medica">Sin Receta Médica</option>
+                            <option value="Con Receta Medica">Con Receta Médica</option>
+                        </select>
+                    </div>
+                    <div class="col-12 d-flex flex-wrap justify-content-end gap-2 pt-2">
+                        <button id="cancelQuickMedicine"
+                            class="btn btn-outline-secondary px-3" type="button">
+                            Cancelar
+                        </button>
+                        <button id="saveQuickMedicine"
+                            class="btn btn-success fw-semibold px-4" type="button">
+                            Guardar medicamento y continuar lote
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>`;
+    const medicineGroup =
+        document.getElementById("id_medicamento")?.closest("div");
+    if (medicineGroup) {
+        medicineGroup.insertAdjacentElement("afterend", container);
+    } else {
+        form.appendChild(container);
+    }
+
+    document.getElementById("showQuickMedicineForm")
+        .addEventListener("click", () => {
+            document.getElementById("quickMedicineName").value =
+                document.getElementById("id_medicamento").value.trim();
+            document.getElementById("quickMedicineFields")
+                .classList.remove("d-none");
+            document.getElementById("showQuickMedicineForm")
+                .classList.add("d-none");
+        });
+    document.getElementById("saveQuickMedicine")
+        .addEventListener("click", saveQuickMedicine);
+    const laboratoryInput =
+        document.getElementById("quickMedicineLaboratory");
+    laboratoryInput.addEventListener("input", () => {
+        renderQuickMedicineLaboratoryOptions(laboratoryInput.value);
+    });
+    laboratoryInput.addEventListener("focus", () => {
+        renderQuickMedicineLaboratoryOptions(laboratoryInput.value);
+    });
+    laboratoryInput.addEventListener("blur", () => {
+        setTimeout(() => {
+            document.getElementById("quickMedicineLaboratoryOptions")
+                ?.classList.add("d-none");
+        }, 150);
+    });
+    document.getElementById("cancelQuickMedicine")
+        .addEventListener("click", () => {
+            document.getElementById("quickMedicineFields")
+                .classList.add("d-none");
+            document.getElementById("showQuickMedicineForm")
+                .classList.remove("d-none");
+        });
+}
+
+function validateCompletedLotDate(input, isInvalid, errorText) {
+    const value = input.value;
+    const isComplete = /^\d{4}-\d{2}-\d{2}$/.test(value);
+    if (!isComplete) {
+        input.setCustomValidity("");
+        return;
+    }
+    const invalid = isInvalid(value, getLocalDateValue());
+    input.setCustomValidity(invalid ? errorText : "");
+    if (invalid) {
+        showMessage(errorText, true);
+    } else if (message.textContent === errorText) {
+        if (messageTimer) {
+            window.clearTimeout(messageTimer);
+            messageTimer = null;
+        }
+        message.className = "alert d-none";
+        message.textContent = "";
+    }
+}
+
 function toggleQuickMedicineRegistration(show) {
     const container = document.getElementById("quickMedicineRegistration");
     if (!container) return;
@@ -4013,20 +4182,42 @@ function toggleQuickMedicineRegistration(show) {
     if (!show) {
         document.getElementById("quickMedicineFields")
             ?.classList.add("d-none");
+        document.getElementById("showQuickMedicineForm")
+            ?.classList.remove("d-none");
     }
 }
 
-function renderQuickMedicineLaboratoryOptions() {
+function renderQuickMedicineLaboratoryOptions(searchValue = "") {
     const container = document.getElementById(
         "quickMedicineLaboratoryOptions"
     );
     if (!container) return;
     container.replaceChildren();
-    [...new Set(
+    const search = searchValue.trim().toLocaleLowerCase("es");
+    const laboratories = [...new Set(
         lotMedicineCatalog.map((item) => item.laboratorio.trim()).filter(Boolean)
-    )].sort().forEach((laboratory) => {
-        container.appendChild(new Option(laboratory, laboratory));
+    )].sort().filter((laboratory) =>
+        laboratory.toLocaleLowerCase("es").includes(search)
+    ).slice(0, 8);
+    laboratories.forEach((laboratory) => {
+        const option = document.createElement("button");
+        option.type = "button";
+        option.className = "lot-dropdown-option";
+        option.textContent = laboratory;
+        option.addEventListener("mousedown", (event) => {
+            event.preventDefault();
+            document.getElementById("quickMedicineLaboratory").value =
+                laboratory;
+            container.classList.add("d-none");
+        });
+        container.appendChild(option);
     });
+    const laboratoryInput =
+        document.getElementById("quickMedicineLaboratory");
+    const shouldShow =
+        document.activeElement === laboratoryInput &&
+        laboratories.length > 0;
+    container.classList.toggle("d-none", !shouldShow);
 }
 
 async function saveQuickMedicine() {
@@ -4035,38 +4226,20 @@ async function saveQuickMedicine() {
         document.getElementById("quickMedicineLaboratory").value.trim();
     const category =
         document.getElementById("quickMedicineCategory").value.trim();
-    const presentation =
-        document.getElementById("quickMedicinePresentation").value.trim();
     const restriction =
         document.getElementById("quickMedicineRestriction").value;
-    const saleForm =
-        document.getElementById("quickMedicineSaleForm").value.trim();
-    const salePrice = Number(
-        document.getElementById("quickMedicineSalePrice").value
-    );
     const purchasePrice = Number(
         document.getElementById("precio_compra").value
     );
-    const allowed = [
-        "Caja", "Unidad", "Frasco", "Blister", "Sobre", "Ampolla"
-    ];
-    if (!name || !laboratory || !restriction || !saleForm) {
+    if (!name || !laboratory || !restriction) {
         showMessage(
-            "Complete nombre, laboratorio, restricción y forma de venta.",
+            "Complete nombre, laboratorio y restricción.",
             true
         );
         return;
     }
-    if (identity.length !== 15 || phone.length !== 9) {
-        showMessage(
-            "El DNI debe tener 15 caracteres y el teléfono 9.",
-            true
-        );
-        return;
-    }
-    if (!allowed.includes(saleForm) || !(salePrice > 0) ||
-        !Number.isFinite(purchasePrice) || purchasePrice < 0) {
-        showMessage("Revise la forma de venta y los precios.", true);
+    if (!Number.isFinite(purchasePrice) || purchasePrice < 0) {
+        showMessage("Revise el precio de compra.", true);
         return;
     }
 
@@ -4095,15 +4268,9 @@ async function saveQuickMedicine() {
                  restriccion, laboratorio, forma_venta, estado)
              VALUES (?, ?, NULL, ?, ?, ?, ?, 0, 5, ?, ?, ?, 'Agotado')`,
             [
-                code, name, category || null, presentation || null,
-                purchasePrice, salePrice, restriction, laboratory, saleForm,
+                code, name, category || null, null,
+                purchasePrice, 0, restriction, laboratory, "Unidad",
             ]
-        );
-        await connection.execute(
-            `INSERT INTO medicamento_presentaciones
-                (id_medicamento, nombre_presentacion, precio_venta, estado)
-             VALUES (?, ?, ?, 'Activa')`,
-            [result.insertId, saleForm, salePrice]
         );
         await connection.commit();
         await loadLotMedicineCatalog();
@@ -4139,14 +4306,14 @@ function validateLotData(data) {
         throw new Error("Seleccione un medicamento registrado.");
     }
     const today = getLocalDateValue();
-    if (data.fecha_fabricacion > today) {
+    if (data.fecha_fabricacion >= today) {
         throw new Error(
-            "La fecha ingresada no puede ser superior a la actual."
+            "La fecha de fabricación tiene que ser inferior a la actual."
         );
     }
-    if (data.fecha_vencimiento < today) {
+    if (data.fecha_vencimiento <= today) {
         throw new Error(
-            "La fecha ingresada no puede ser inferior a la actual."
+            "La fecha de vencimiento tiene que ser superior a la actual."
         );
     }
     const quantity = Number(data.cantidad_inicial);
@@ -4197,6 +4364,17 @@ async function saveLotTransaction(data) {
     }
     const entryUnits = getLotEntryStockUnits();
     const stockQuantity = quantity * entryUnits;
+    const primaryPresentation = presentations[0];
+    const allowedSaleForms = [
+        "Caja", "Unidad", "Frasco", "Blister", "Sobre", "Ampolla"
+    ];
+    const normalizedSaleForm =
+        primaryPresentation.nombre === "Blíster"
+            ? "Blister"
+            : primaryPresentation.nombre;
+    const legacySaleForm = allowedSaleForms.includes(normalizedSaleForm)
+        ? normalizedSaleForm
+        : "Unidad";
 
     const connection = await db.getConnection();
     try {
@@ -4217,9 +4395,19 @@ async function saveLotTransaction(data) {
             `UPDATE medicamentos
              SET stock_total = stock_total + ?,
                  precio_compra = ?,
+                 presentacion = ?,
+                 precio_venta = ?,
+                 forma_venta = ?,
                  estado = 'Disponible'
              WHERE id_medicamento = ?`,
-            [stockQuantity, purchasePrice, selectedLotMedicine.id_medicamento]
+            [
+                stockQuantity,
+                purchasePrice,
+                entryPresentation,
+                primaryPresentation.precio,
+                legacySaleForm,
+                selectedLotMedicine.id_medicamento,
+            ]
         );
         for (const item of presentations) {
             await connection.execute(
