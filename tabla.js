@@ -49,7 +49,7 @@ tableHeader.className = "d-flex justify-content-between align-items-center p-3 b
 
 const tableTitle = document.createElement("h2");
 tableTitle.className = "h5 mb-0";
-tableTitle.textContent = "Registros";
+tableTitle.textContent = `Registros de ${config.title}`;
 
 const toggleTableButton = document.createElement("button");
 toggleTableButton.type = "button";
@@ -599,6 +599,10 @@ function renderForm() {
             input.className = "form-control";
             if (field.step) input.step = field.step;
             if (field.min !== undefined) input.min = field.min;
+            if (field.max !== undefined) input.max = field.max;
+            if (field.maxToday) {
+                input.max = new Date().toISOString().slice(0, 10);
+            }
             if (field.minlength) input.minLength = field.minlength;
         }
         if (field.exactLength) {
@@ -671,6 +675,20 @@ function renderForm() {
         }
 
         group.append(label, input);
+        if (field.type === "password") {
+            const togglePassword = document.createElement("button");
+            togglePassword.type = "button";
+            togglePassword.className = "btn btn-outline-secondary btn-sm mt-2";
+            togglePassword.textContent = "Mostrar contraseña";
+            togglePassword.addEventListener("click", () => {
+                const willShow = input.type === "password";
+                input.type = willShow ? "text" : "password";
+                togglePassword.textContent = willShow
+                    ? "Ocultar contraseña"
+                    : "Mostrar contraseña";
+            });
+            group.appendChild(togglePassword);
+        }
         if (field.passwordRule) {
             const passwordFeedback = document.createElement("div");
             passwordFeedback.id = `${field.name}Feedback`;
@@ -719,6 +737,10 @@ function renderForm() {
         configureAutomaticDiscount();
         configureAutomaticChange();
         createSaleItemsSection();
+    }
+
+    if (moduleName === "medicamentos") {
+        loadNextMedicineCode();
     }
 
     if (moduleName === "compras") {
@@ -823,8 +845,8 @@ function createQuickClientRegistration() {
                             <span class="badge quick-client-badge rounded-pill mb-2">
                                 Registro rápido
                             </span>
-                            <h3 class="h5 fw-bold mb-1">Cliente no registrado</h3>
-                            <p class="small text-secondary mb-0">
+                            <h3 id="quickClientTitle" class="h5 fw-bold mb-1">Cliente no registrado</h3>
+                            <p id="quickClientDescription" class="small text-secondary mb-0">
                                 Puede registrarlo sin salir de la venta.
                             </p>
                         </div>
@@ -953,21 +975,38 @@ function createQuickClientRegistration() {
             event.target.value =
                 formatStructuredInput(event.target.value, "phone");
         });
+    document.getElementById("quickClientBirthDate").max =
+        new Date().toISOString().slice(0, 10);
 }
 
-function toggleQuickClientRegistration(show) {
+function toggleQuickClientRegistration(show, mode = "unregistered") {
     const container = document.getElementById(
         "quickClientRegistration"
     );
     if (!container) return;
+    const isInactive = mode === "inactive";
+    const title = document.getElementById("quickClientTitle");
+    const description = document.getElementById("quickClientDescription");
+    const actionButton = document.getElementById("showQuickClientForm");
+    if (title) {
+        title.textContent = isInactive
+            ? "Cliente inactivo"
+            : "Cliente no registrado";
+    }
+    if (description) {
+        description.textContent = isInactive
+            ? "Este cliente no puede utilizarse mientras permanezca inactivo."
+            : "Puede registrarlo sin salir de la venta.";
+    }
+    actionButton?.classList.toggle("d-none", isInactive);
     container.classList.toggle("d-none", !show);
     if (!show) {
         document
             .getElementById("quickClientFields")
             .classList.add("d-none");
-        document
-            .getElementById("showQuickClientForm")
-            .classList.remove("d-none");
+        if (!isInactive) {
+            actionButton?.classList.remove("d-none");
+        }
     }
 }
 
@@ -989,6 +1028,13 @@ async function saveQuickClient() {
     if (!identity || !name || !lastName || !phone || !birthDate) {
         showMessage(
             "Complete DNI, nombre, apellido, teléfono y fecha de nacimiento.",
+            true
+        );
+        return;
+    }
+    if (birthDate > new Date().toISOString().slice(0, 10)) {
+        showMessage(
+            "La fecha de nacimiento no puede ser posterior a la fecha actual.",
             true
         );
         return;
@@ -1088,10 +1134,9 @@ async function updateSalesDiscount(showInvalidDni) {
     }
 
     const [clients] = await db.execute(
-        `SELECT nombre, apellido, fecha_nacimiento, puntos_acumulados
+        `SELECT nombre, apellido, fecha_nacimiento, puntos_acumulados, estado
          FROM clientes
          WHERE identidad = ?
-            AND estado = 'Activo'
          LIMIT 1`,
         [dni]
     );
@@ -1116,6 +1161,17 @@ async function updateSalesDiscount(showInvalidDni) {
     }
 
     const client = clients[0];
+    if (client.estado !== "Activo") {
+        if (clientName) {
+            clientName.textContent = "Cliente inactivo";
+            clientName.className = "form-text fw-semibold text-danger";
+        }
+        toggleQuickClientRegistration(true, "inactive");
+        form.dataset.discountRate = "0";
+        document.getElementById("puntos_disponibles").value = "0";
+        calculateSalesTotals();
+        return;
+    }
     if (clientName) {
         clientName.textContent =
             `Cliente: ${client.nombre} ${client.apellido}`;
@@ -2524,6 +2580,22 @@ function formatDate(value) {
         : text;
 }
 
+async function loadNextMedicineCode() {
+    const codigoInput = document.getElementById("codigo");
+    if (!codigoInput || editingId !== null) return;
+    try {
+        const [result] = await db.execute(
+            `SELECT COALESCE(MAX(CAST(SUBSTRING(codigo, 4) AS UNSIGNED)), 0) + 1 AS siguiente
+             FROM medicamentos
+             WHERE codigo LIKE 'MED%'`
+        );
+        codigoInput.value =
+            "MED" + String(result[0].siguiente).padStart(3, "0");
+    } catch (error) {
+        console.error("No se pudo generar el código del medicamento:", error);
+    }
+}
+
 function getData() {
     const data = {};
 
@@ -3440,6 +3512,10 @@ function clearForm() {
     if (moduleName === "compras") {
         toggleQuickDistributorRegistration(false);
         loadNextPurchaseInvoiceNumber();
+    }
+
+    if (moduleName === "medicamentos") {
+        loadNextMedicineCode();
     }
 
     if (moduleName === "lote") {

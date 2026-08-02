@@ -48,11 +48,12 @@ module.exports = {
             name: "fecha_compra",
             label: "Fecha de compra",
             type: "date",
+            maxToday: true,
             required: true
         },
         {
             name: "total",
-            label: "Total de la compra",
+            label: "Total de la compra (Lps.)",
             placeholder: "L. 0.00",
             type: "number",
             min: 0,

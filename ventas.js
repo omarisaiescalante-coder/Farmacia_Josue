@@ -62,7 +62,7 @@ module.exports = {
             automaticTotal: true,
             required: true
         },
-        { name: "metodo_pago", label: "Método de Pago", type: "select", options: ["Efectivo", "Tarjeta", "Transferencia", "Mixto"], required: true },
+        { name: "metodo_pago", label: "Método de Pago", type: "select", options: ["Efectivo", "Tarjeta", "Transferencia", "Mixto"], defaultValue: "Efectivo", required: true },
         { name: "monto_recibido", label: "Monto Recibido", type: "number", min: 0, step: "0.01", hideInTable: true },
         {
             name: "cambio",
