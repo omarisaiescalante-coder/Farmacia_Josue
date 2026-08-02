@@ -29,6 +29,7 @@ if (!canViewReport) {
 
     if (reportType === "ventas") initializeSalesReport();
     else if (reportType === "compras") initializePurchasesReport();
+    else if (reportType === "lotes") initializeLotsReport();
     else initializeExpirationReport();
 }
 
@@ -38,6 +39,8 @@ document.getElementById("backButton").addEventListener("click", () => {
             ? "ventas.html"
             : reportType === "compras"
             ? "compras.html"
+            : reportType === "lotes"
+            ? "lote.html"
             : "medicamentos.html";
 });
 
@@ -58,6 +61,8 @@ async function generatePdf() {
                 ? `reporte-ventas-${document.getElementById("salesStartDate").value}-${document.getElementById("salesEndDate").value}.pdf`
                 : reportType === "compras"
                 ? `reporte-compras-${document.getElementById("purchasesStartDate").value}-${document.getElementById("purchasesEndDate").value}.pdf`
+                : reportType === "lotes"
+                ? `reporte-lotes-${document.getElementById("lotsStartDate").value}-${document.getElementById("lotsEndDate").value}.pdf`
                 : `reporte-vencimientos-${document.getElementById("expirationStartDate").value}-${document.getElementById("expirationEndDate").value}.pdf`;
 
         const result = await ipcRenderer.invoke(
@@ -256,6 +261,91 @@ async function loadSalesReport() {
                 formatDate(row.fecha),
                 row.ventas,
                 currency(row.ingresos),
+            ])
+        );
+    } catch (error) {
+        showError(error);
+    }
+}
+
+function initializeLotsReport() {
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = String(now.getMonth() + 1).padStart(2, "0");
+    const lastDay = new Date(year, now.getMonth() + 1, 0).getDate();
+
+    document.getElementById("lotsStartDate").value =
+        `${year}-${month}-01`;
+    document.getElementById("lotsEndDate").value =
+        `${year}-${month}-${String(lastDay).padStart(2, "0")}`;
+
+    document
+        .getElementById("generateLotsButton")
+        .addEventListener("click", loadLotsReport);
+    loadLotsReport();
+}
+
+async function loadLotsReport() {
+    try {
+        const start = document.getElementById("lotsStartDate").value;
+        const end = document.getElementById("lotsEndDate").value;
+
+        if (!start || !end) {
+            throw new Error("Seleccione la fecha inicial y la fecha final.");
+        }
+        if (end < start) {
+            throw new Error(
+                "La fecha final no puede ser anterior a la fecha inicial."
+            );
+        }
+
+        const endExclusive = getNextDate(end);
+        const [lots] = await db.query(
+            `SELECT DATE(l.fecha_ingreso) fecha_ingreso,
+                    m.codigo, m.nombre, l.numero_lote,
+                    l.cantidad_inicial, l.fecha_vencimiento,
+                    l.precio_compra
+             FROM lote l
+             INNER JOIN medicamentos m
+                ON l.id_medicamento = m.id_medicamento
+             WHERE l.fecha_ingreso >= ?
+                AND l.fecha_ingreso < ?
+             ORDER BY l.fecha_ingreso, l.numero_lote`,
+            [start, endExclusive]
+        );
+
+        const totalInvestment = lots.reduce(
+            (total, lot) =>
+                total +
+                Number(lot.cantidad_inicial || 0) *
+                    Number(lot.precio_compra || 0),
+            0
+        );
+
+        document.getElementById("periodStart").textContent =
+            formatDate(start);
+        document.getElementById("periodEnd").textContent =
+            formatDate(end);
+        document.getElementById("totalLotes").textContent = lots.length;
+        document.getElementById("totalInversion").textContent =
+            currency(totalInvestment);
+
+        renderTable(
+            [
+                "Ingreso", "Código", "Medicamento", "Lote",
+                "Ingresadas", "Vencimiento", "Costo total",
+            ],
+            lots.map((lot) => [
+                formatDate(lot.fecha_ingreso),
+                lot.codigo,
+                lot.nombre,
+                lot.numero_lote,
+                lot.cantidad_inicial,
+                formatDate(lot.fecha_vencimiento),
+                currency(
+                    Number(lot.cantidad_inicial || 0) *
+                        Number(lot.precio_compra || 0)
+                ),
             ])
         );
     } catch (error) {

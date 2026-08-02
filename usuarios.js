@@ -15,11 +15,12 @@ module.exports = {
             name: "contrasena",
             label: "Contraseña",
             type: "password",
+            showPassword: true,
             minlength: 8,
             passwordRule: true,
             required: true
         },
         { name: "rol", label: "Rol", type: "select", options: ["Administrador", "Cajero"], required: true },
-        { name: "estado", label: "Estado", type: "select", options: ["Activo", "Inactivo"] }
+        { name: "estado", label: "Estado", type: "select", options: ["Activo", "Inactivo"], defaultValue: "Activo" }
     ]
 };

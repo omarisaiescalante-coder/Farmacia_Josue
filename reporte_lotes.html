@@ -3,14 +3,14 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Reporte de compras</title>
+    <title>Reporte de lotes</title>
     <link
         href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css"
         rel="stylesheet"
     >
     <link rel="stylesheet" href="./styles/bootstrap-theme.css">
 </head>
-<body data-report="compras" class="bg-light">
+<body data-report="lotes" class="bg-light">
     <nav class="navbar navbar-dark bg-success px-4 py-3 shadow d-print-none">
         <strong class="navbar-brand">Farmacia Josue</strong>
         <span id="sessionUser" class="text-white"></span>
@@ -25,37 +25,30 @@
                 Generar PDF
             </button>
         </div>
-        <h1>Reporte de compras</h1>
+
+        <h1>Reporte de lotes</h1>
         <p class="text-secondary">
-            Resumen de compras a proveedores y egresos por periodo.
+            Resumen de lotes ingresados durante el periodo seleccionado.
         </p>
         <div id="message" class="alert d-none"></div>
 
         <section class="card border-0 shadow-sm p-4 mb-4 d-print-none">
             <div class="row g-3 align-items-end">
                 <div class="col-12 col-md-4">
-                    <label for="purchasesStartDate" class="form-label fw-semibold">
+                    <label for="lotsStartDate" class="form-label fw-semibold">
                         Fecha de inicio
                     </label>
-                    <input
-                        id="purchasesStartDate"
-                        class="form-control"
-                        type="date"
-                    >
+                    <input id="lotsStartDate" class="form-control" type="date">
                 </div>
                 <div class="col-12 col-md-4">
-                    <label for="purchasesEndDate" class="form-label fw-semibold">
+                    <label for="lotsEndDate" class="form-label fw-semibold">
                         Fecha final
                     </label>
-                    <input
-                        id="purchasesEndDate"
-                        class="form-control"
-                        type="date"
-                    >
+                    <input id="lotsEndDate" class="form-control" type="date">
                 </div>
                 <div class="col-12 col-md-4">
                     <button
-                        id="generatePurchasesButton"
+                        id="generateLotsButton"
                         class="btn btn-success w-100"
                         type="button"
                     >
@@ -80,16 +73,22 @@
         </section>
 
         <section class="row g-3 mb-4 justify-content-center">
-            <div class="col-12 col-md-6 col-xl-4">
-                <div class="card border-0 shadow-sm p-4">
-                    <span>Total Invertido (Compras)</span>
-                    <strong id="totalCompras" class="fs-3 text-danger"></strong>
+            <div class="col-12 col-md-4">
+                <div class="card border-0 shadow-sm p-4 h-100">
+                    <span>Lotes ingresados</span>
+                    <strong id="totalLotes" class="fs-3 text-success"></strong>
+                </div>
+            </div>
+            <div class="col-12 col-md-4">
+                <div class="card border-0 shadow-sm p-4 h-100">
+                    <span>Inversión</span>
+                    <strong id="totalInversion" class="fs-3 text-danger"></strong>
                 </div>
             </div>
         </section>
 
         <section class="card border-0 shadow-sm table-responsive">
-            <h2 class="h5 p-3 border-bottom mb-0">Compras del periodo</h2>
+            <h2 class="h5 p-3 border-bottom mb-0">Lotes del periodo</h2>
             <div id="reportTable"></div>
         </section>
     </main>

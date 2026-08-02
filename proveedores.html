@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Laboratorios y proveedores</title>
+    <link
+        href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css"
+        rel="stylesheet"
+    >
+    <link rel="stylesheet" href="./styles/bootstrap-theme.css">
+</head>
+<body data-report="proveedores" class="bg-light">
+    <nav class="navbar navbar-dark bg-success px-4 py-3 shadow">
+        <strong class="navbar-brand">Farmacia Josue</strong>
+        <span id="sessionUser" class="text-white"></span>
+        <button id="logoutButton" class="btn btn-outline-light" type="button">
+            Cerrar sesión
+        </button>
+    </nav>
+
+    <main class="container-fluid p-4">
+        <div class="d-flex flex-wrap gap-2 mb-3">
+            <button id="backButton" class="btn btn-outline-success" type="button">
+                ← Volver atrás
+            </button>
+        </div>
+
+        <h1>Laboratorios y proveedores</h1>
+        <p class="text-secondary">
+            Consulta de laboratorios y proveedores registrados en el sistema.
+        </p>
+        <div id="message" class="alert d-none" role="alert"></div>
+
+        <section id="providerFormSection" class="card border-0 shadow-sm p-4 mb-4 d-none">
+            <h2 class="h5 mb-3">Editar laboratorio o proveedor</h2>
+            <form id="providerForm" class="row g-3">
+                <div class="col-12 col-md-6">
+                    <label for="providerName" class="form-label fw-semibold">Nombre</label>
+                    <input id="providerName" class="form-control" type="text" required>
+                </div>
+                <div class="col-12 col-md-6">
+                    <label for="providerPhone" class="form-label fw-semibold">Teléfono</label>
+                    <input id="providerPhone" class="form-control" type="text" maxlength="9">
+                </div>
+                <div class="col-12 col-md-6">
+                    <label for="providerEmail" class="form-label fw-semibold">Correo</label>
+                    <input id="providerEmail" class="form-control" type="email">
+                </div>
+                <div class="col-12 col-md-6">
+                    <label for="providerAddress" class="form-label fw-semibold">Dirección</label>
+                    <input id="providerAddress" class="form-control" type="text">
+                </div>
+                <div class="col-12 col-md-6">
+                    <label for="providerStatus" class="form-label fw-semibold">Estado</label>
+                    <select id="providerStatus" class="form-select">
+                        <option value="Activo">Activo</option>
+                        <option value="Inactivo">Inactivo</option>
+                    </select>
+                </div>
+                <div class="col-12 d-flex flex-wrap gap-2">
+                    <button class="btn btn-success" type="submit">Guardar cambios</button>
+                    <button id="cancelEditButton" class="btn btn-secondary" type="button">Cancelar</button>
+                </div>
+            </form>
+        </section>
+
+        <section class="row g-3 mb-4 justify-content-center">
+            <div class="col-12 col-md-6 col-xl-4">
+                <div class="card border-0 shadow-sm p-4">
+                    <span>Total registrados</span>
+                    <strong id="providersTotal" class="fs-3 text-success">0</strong>
+                </div>
+            </div>
+        </section>
+
+        <section class="card border-0 shadow-sm table-responsive">
+            <h2 class="h5 p-3 border-bottom mb-0">Listado de laboratorios y proveedores</h2>
+            <div id="providersTable"></div>
+        </section>
+    </main>
+
+    <script src="./proveedores.js"></script>
+</body>
+</html>

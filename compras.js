@@ -52,7 +52,7 @@ module.exports = {
         },
         {
             name: "total",
-            label: "Total de la compra (Lps.)",
+            label: "Total de la compra",
             placeholder: "L. 0.00",
             type: "number",
             min: 0,

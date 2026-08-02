@@ -60,10 +60,12 @@ toggleTableButton.textContent = "Desplegar la tabla ▼";
 const tableActions = document.createElement("div");
 tableActions.className = "d-flex flex-wrap gap-2";
 
-if (
-    user?.rol === "Administrador" &&
-    ["medicamentos", "ventas", "compras"].includes(moduleName)
-) {
+const canOpenReport =
+    (user?.rol === "Administrador" &&
+        ["medicamentos", "ventas", "compras", "lote"].includes(moduleName)) ||
+    (user?.rol === "Cajero" && moduleName === "ventas");
+
+if (canOpenReport) {
     const reportButton = document.createElement("button");
     reportButton.type = "button";
     reportButton.className = "btn btn-outline-success btn-sm px-3 py-2";
@@ -78,10 +80,15 @@ if (
         reportButton.addEventListener("click", () => {
             window.location.href = "reporte_ventas.html";
         });
-    }    else { 
+    } else if (moduleName === "compras") {
         reportButton.textContent = "Reporte de compras";
         reportButton.addEventListener("click", () => {
             window.location.href = "reporte_compras.html";
+        });
+    } else {
+        reportButton.textContent = "Reporte de lotes";
+        reportButton.addEventListener("click", () => {
+            window.location.href = "reporte_lotes.html";
         });
     }
 
@@ -296,7 +303,15 @@ function createSearchSection() {
     });
 
     searchText.addEventListener("input", () => {
-        if (moduleName === "medicamentos") {
+        if (
+            ["usuarios", "clientes"].includes(moduleName) &&
+            /^\d/.test(searchText.value)
+        ) {
+            searchText.value = formatStructuredInput(
+                searchText.value,
+                "identity"
+            );
+        } else if (moduleName === "medicamentos") {
             renderModuleMedicineSuggestions(
                 searchText,
                 medicineSearchSuggestions,
@@ -430,8 +445,16 @@ function renderModuleMedicineSuggestions(
     );
 }
 
+function normalizeSearchText(value) {
+    return String(value || "")
+        .trim()
+        .toLocaleLowerCase("es")
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "");
+}
+
 function filterRecords(searchValue, options) {
-    const value = searchValue.trim().toLocaleLowerCase("es");
+    const value = normalizeSearchText(searchValue);
 
     if (!value) {
         renderTable();
@@ -447,9 +470,7 @@ function filterRecords(searchValue, options) {
                     ? `${row.nombre || ""} ${row.apellido || ""}`
                     : row[field];
 
-            return String(fieldValue || "")
-                .toLocaleLowerCase("es")
-                .includes(value);
+            return normalizeSearchText(fieldValue).includes(value);
         });
     });
 
@@ -482,6 +503,9 @@ if (!user || !permissions[user.rol]?.includes(moduleName)) {
 }
 
 document.getElementById("backButton").addEventListener("click", () => { window.location.href = "index.html"; });
+document.getElementById("providersButton")?.addEventListener("click", () => {
+    window.location.href = "proveedores.html";
+});
 document.getElementById("logoutButton").addEventListener("click", () => {
     sessionStorage.removeItem("usuarioActivo");
     ipcRenderer.send("session:clear-user");
@@ -571,7 +595,7 @@ function renderForm() {
             input.rows = 3;
         } else {
             input = document.createElement("input");
-            input.type = field.type || "text";
+            input.type = field.showPassword ? "text" : (field.type || "text");
             input.className = "form-control";
             if (field.step) input.step = field.step;
             if (field.min !== undefined) input.min = field.min;
@@ -597,6 +621,9 @@ function renderForm() {
         ) {
             input.value = String(field.defaultValue);
             input.defaultValue = String(field.defaultValue);
+            if (field.type === "select" && input.selectedIndex >= 0) {
+                input.options[input.selectedIndex].defaultSelected = true;
+            }
         }
 
         if (field.autoInvoice) {
@@ -637,24 +664,37 @@ function renderForm() {
             group.classList.add("position-relative");
             const suggestionsDiv = document.createElement("div");
             suggestionsDiv.id = "distributorSuggestions";
-            suggestionsDiv.className = "list-group position-absolute start-0 end-0 mx-3 shadow z-3 d-none";
+            suggestionsDiv.className =
+                "list-group position-absolute top-100 start-0 end-0 " +
+                "mx-3 mt-1 shadow z-3 d-none";
             group.appendChild(suggestionsDiv);
         }
 
         group.append(label, input);
-        if (field.type === "password") {
-            const togglePassword = document.createElement("button");
-            togglePassword.type = "button";
-            togglePassword.className = "btn btn-outline-secondary btn-sm mt-2";
-            togglePassword.textContent = "Mostrar contraseña";
-            togglePassword.addEventListener("click", () => {
-                const willShow = input.type === "password";
-                input.type = willShow ? "text" : "password";
-                togglePassword.textContent = willShow
-                    ? "Ocultar contraseña"
-                    : "Mostrar contraseña";
+        if (field.passwordRule) {
+            const passwordFeedback = document.createElement("div");
+            passwordFeedback.id = `${field.name}Feedback`;
+            passwordFeedback.className = "invalid-feedback";
+            passwordFeedback.textContent =
+                "La contraseña debe tener 8 o más caracteres, incluir una letra mayúscula, un número y un carácter especial.";
+            input.setAttribute("aria-describedby", passwordFeedback.id);
+
+            input.addEventListener("blur", () => {
+                const value = input.value;
+                const isValid =
+                    !value ||
+                    (value.length >= 8 &&
+                        /[A-Z]/.test(value) &&
+                        /[0-9]/.test(value) &&
+                        /[^A-Za-z0-9]/.test(value));
+
+                input.classList.toggle("is-invalid", !isValid);
             });
-            group.appendChild(togglePassword);
+
+            input.addEventListener("input", () => {
+                input.classList.remove("is-invalid");
+            });
+            group.appendChild(passwordFeedback);
         }
         if (field.type === "client-dni") {
             const clientName = document.createElement("div");
@@ -3364,6 +3404,9 @@ async function deleteSaleTransaction(id) {
 
 function clearForm() {
     form.reset();
+    form.querySelectorAll(".is-invalid").forEach((input) => {
+        input.classList.remove("is-invalid");
+    });
     editingId = null;
     saveButton.textContent = "Guardar";
     
@@ -4443,6 +4486,8 @@ Configuración para el autocompletado y autorrelleno de distribuidores en Compra
 function configureDistributorAutocomplete() {
     const distributorInput = document.getElementById("id_distribuidor");
     if (!distributorInput) return;
+    let searchRequestId = 0;
+    let distributorSearchTimer = null;
 
     const container = distributorInput.parentElement;
     let suggestionsDiv = document.getElementById("distributorSuggestions");
@@ -4450,44 +4495,69 @@ function configureDistributorAutocomplete() {
     if (!suggestionsDiv) {
         suggestionsDiv = document.createElement("div");
         suggestionsDiv.id = "distributorSuggestions";
-        suggestionsDiv.className = "list-group position-absolute start-0 end-0 mx-3 shadow z-3 d-none";
+        suggestionsDiv.className =
+            "list-group position-absolute top-100 start-0 end-0 " +
+            "mx-3 mt-1 shadow z-3 d-none";
         container.appendChild(suggestionsDiv);
     }
 
-    distributorInput.addEventListener("input", async () => {
+    distributorInput.addEventListener("input", () => {
         const query = distributorInput.value.trim();
-        toggleQuickDistributorRegistration(false);
+        const requestId = ++searchRequestId;
+        if (distributorSearchTimer) {
+            window.clearTimeout(distributorSearchTimer);
+        }
+        suggestionsDiv.classList.add("d-none");
         if (query.length === 0) {
-            suggestionsDiv.classList.add("d-none");
+            toggleQuickDistributorRegistration(false);
             return;
         }
 
-        try {
-            const [results] = await db.execute(
-                `SELECT nombre, telefono, correo 
-                 FROM distribuidores 
-                 WHERE nombre LIKE ? 
-                 LIMIT 5`,
-                [`%${query}%`]
-            );
+        distributorSearchTimer = window.setTimeout(async () => {
+            try {
+                const [results] = await db.execute(
+                    `SELECT nombre, telefono, correo
+                     FROM distribuidores
+                     WHERE nombre LIKE ?
+                     LIMIT 5`,
+                    [`%${query}%`]
+                );
 
-            renderDistributorSuggestions(results, suggestionsDiv, distributorInput);
-        } catch (error) {
-            console.error("Error buscando distribuidores:", error);
-        }
+                if (requestId !== searchRequestId) return;
+                renderDistributorSuggestions(
+                    results,
+                    suggestionsDiv,
+                    distributorInput
+                );
+                toggleQuickDistributorRegistration(results.length === 0);
+            } catch (error) {
+                console.error("Error buscando distribuidores:", error);
+            } finally {
+                if (requestId === searchRequestId) {
+                    distributorSearchTimer = null;
+                }
+            }
+        }, 700);
     });
 
     distributorInput.addEventListener("focus", async () => {
         if (distributorInput.value.trim().length > 0) {
+            const requestId = ++searchRequestId;
             const [results] = await db.execute(
                 `SELECT nombre, telefono, correo FROM distribuidores WHERE nombre LIKE ? LIMIT 5`,
                 [`%${distributorInput.value.trim()}%`]
             );
+            if (requestId !== searchRequestId) return;
             renderDistributorSuggestions(results, suggestionsDiv, distributorInput);
         }
     });
 
     distributorInput.addEventListener("blur", () => {
+        if (distributorSearchTimer) {
+            window.clearTimeout(distributorSearchTimer);
+            distributorSearchTimer = null;
+        }
+        searchRequestId += 1;
         window.setTimeout(async () => {
             const query = distributorInput.value.trim();
             if (!query) {
