@@ -172,11 +172,44 @@ function getPresentationStockUnits(presentationName, medicinePresentation = "") 
     return 1;
 }
 
-function getMedicineStockDisplay(medicine, preferredPresentation = "Caja") {
+function isPillPresentation(presentationName, medicinePresentation = "") {
+    const combined = (
+        String(presentationName || "") + " " + String(medicinePresentation || "")
+    )
+        .toLocaleLowerCase("es")
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "");
+    return /\b(pastill|tableta|comprimid|capsul|cápsul|blister)\b/.test(combined);
+}
+
+function isWholeUnitPresentation(presentationName, medicinePresentation = "") {
+    const combined = (
+        String(presentationName || "") + " " + String(medicinePresentation || "")
+    )
+        .toLocaleLowerCase("es")
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "");
+    return /\b(suero|frasco|ampolla|ampollas)\b/.test(combined);
+}
+
+function normalizePresentationName(presentationName, medicinePresentation = "") {
+    const combined = (
+        String(presentationName || "") + " " + String(medicinePresentation || "")
+    )
+        .toLocaleLowerCase("es")
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "");
+    if (/\bblister|blíster\b/.test(combined)) return "Blister";
+    if (/\b(pastill|tableta|comprimid|capsul|cápsul)\b/.test(combined)) return "Caja";
+    return presentationName || "Unidad";
+}
+
+function getMedicineStockDisplay(medicine, preferredPresentation) {
+    const preferred = preferredPresentation || medicine.presentacion_base || medicine.presentacion || medicine.presentations?.[0]?.nombre || "Caja";
     const presentation = medicine.presentations.find(
         (item) =>
             item.nombre.toLocaleLowerCase("es") ===
-            preferredPresentation.toLocaleLowerCase("es")
+            String(preferred).toLocaleLowerCase("es")
     ) || medicine.presentations[0];
     const unitsPerPresentation = Math.max(
         1,
@@ -186,7 +219,14 @@ function getMedicineStockDisplay(medicine, preferredPresentation = "Caja") {
     const formattedAmount = Number.isInteger(amount)
         ? String(amount)
         : amount.toFixed(2);
-    const presentationName = presentation?.nombre || "Unidad";
+    let presentationName = presentation?.nombre || "Unidad";
+    presentationName = normalizePresentationName(presentationName, medicine.presentacion_base);
+    // Para presentaciones que no se venden fraccionadas (suero/frasco/ampolla),
+    // mostrar siempre un número entero (se redondea hacia abajo)
+    if (isWholeUnitPresentation(presentationName, medicine.presentacion_base)) {
+        const whole = String(Math.floor(amount));
+        return `${whole} ${presentationName.toLocaleLowerCase("es")}`;
+    }
     return `${formattedAmount} ${presentationName.toLocaleLowerCase("es")}`;
 }
 
@@ -1557,9 +1597,13 @@ function selectSaleMedicine(medicine) {
         new Option("Seleccione la presentación...", "")
     );
     medicine.presentations.forEach((presentation) => {
+        const displayName = normalizePresentationName(
+            presentation.nombre,
+            medicine.presentacion_base
+        );
         select.add(
             new Option(
-                `${presentation.nombre} - L ${presentation.precio.toFixed(2)}`,
+                `${displayName} - L ${presentation.precio.toFixed(2)}`,
                 String(presentation.id_presentacion)
             )
         );
@@ -1592,14 +1636,15 @@ function updateSalePresentationPrice() {
             String(item.id_presentacion) ===
             document.getElementById("salePresentation").value
     );
+    const displayPresentationName = presentation
+        ? normalizePresentationName(presentation.nombre, medicine.presentacion_base)
+        : "";
     document.getElementById("salePresentationPrice").textContent =
         presentation
             ? `Precio seleccionado: L ${presentation.precio.toFixed(2)} | ` +
-              `Descuenta ${presentation.unidades_stock} ` +
-              `unidad${presentation.unidades_stock === 1 ? "" : "es"} del stock | ` +
               `Disponible: ${getMedicineStockDisplay(
                   medicine,
-                  presentation.nombre
+                  displayPresentationName || presentation.nombre
               )}`
             : "";
 }
@@ -1693,6 +1738,8 @@ async function addMedicineToSale() {
         return;
     }
 
+    const displayPresentationName = normalizePresentationName(presentation.nombre, medicine.presentacion_base);
+
     if (existing) {
         existing.cantidad += quantity;
         existing.subtotal =
@@ -1703,7 +1750,7 @@ async function addMedicineToSale() {
             codigo: medicine.codigo,
             nombre: medicine.nombre,
             id_presentacion: presentation.id_presentacion,
-            presentacion: presentation.nombre,
+            presentacion: displayPresentationName || presentation.nombre,
             unidades_stock: presentation.unidades_stock,
             cantidad: quantity,
             precio_unitario: presentation.precio,
@@ -1871,6 +1918,8 @@ function renderSaleItems() {
 // Consulta los registros del módulo actual y actualiza la tabla visual.
 async function loadRows() {
     try {
+        // Actualizar lotes vencidos antes de cargar cualquier listado
+        await expireLotsIfNeeded();
         if (moduleName === "facturas") {
             [rows] = await db.query(
                 `SELECT
@@ -1956,6 +2005,34 @@ async function loadRows() {
              ${join}
              ORDER BY ${config.table}.${config.id} DESC`
         );
+        // Si estamos en el módulo de medicamentos, obtener las unidades por presentación
+        if (moduleName === "medicamentos" && rows && rows.length) {
+            const ids = [...new Set(rows.map((r) => r.id_medicamento).filter(Boolean))];
+            if (ids.length) {
+                try {
+                    const [presRows] = await db.query(
+                        `SELECT id_medicamento, nombre_presentacion, unidades_stock
+                         FROM medicamento_presentaciones
+                         WHERE id_medicamento IN (?)
+                           AND estado = 'Activa'`,
+                        [ids]
+                    );
+                    const presMap = new Map();
+                    presRows.forEach((p) => {
+                        presMap.set(
+                            `${p.id_medicamento}::${String(p.nombre_presentacion).toLowerCase()}`,
+                            Math.max(1, Number(p.unidades_stock) || 1)
+                        );
+                    });
+                    rows.forEach((r) => {
+                        const key = `${r.id_medicamento}::${String(r.presentacion || r.presentacion_base || "").toLowerCase()}`;
+                        if (presMap.has(key)) r.presentacion_unidades = presMap.get(key);
+                    });
+                } catch (err) {
+                    // si falla, ignorar y usar la heurística local
+                }
+            }
+        }
         renderTable();
     } catch (error) {
         showMessage(`Error al cargar: ${error.message}`, true);
@@ -2285,6 +2362,20 @@ function renderCardGrid(records = rows) {
 
         // STOCK
         const stock = Number(row.stock_total || row.stock || 0);
+        const unidadesPorPresentacion = Number(row.presentacion_unidades) || getPresentationStockUnits(row.presentacion || "", row.presentacion || "");
+        const displayStock = getMedicineStockDisplay(
+            {
+                stock_total: stock,
+                presentations: [
+                    {
+                        nombre: row.presentacion || row.presentacion_base || "Caja",
+                        unidades_stock: unidadesPorPresentacion,
+                    },
+                ],
+                presentacion_base: row.presentacion || row.presentacion_base,
+            },
+            row.presentacion || row.presentacion_base
+        );
 
         let colorClass = "stock-green";
         if (stock <= 10) colorClass = "stock-red";
@@ -2314,7 +2405,7 @@ function renderCardGrid(records = rows) {
 
                 <div class="tooltip-row">
                     <span class="tooltip-label">Stock</span>
-                    <span class="tooltip-value">${stock} unidades</span>
+                    <span class="tooltip-value">${displayStock}</span>
                 </div>
 
                 <div class="tooltip-row">
@@ -3361,21 +3452,49 @@ async function saveSaleTransaction(data) {
                 [item.id_medicamento]
             );
 
-            if (
-                !stockRows.length ||
-                stockRows[0].stock_total < requiredStock
-            ) {
-                throw new Error(
-                    `No hay suficiente stock de ${item.nombre}.`
-                );
+            if (!stockRows.length || stockRows[0].stock_total < requiredStock) {
+                throw new Error(`No hay suficiente stock de ${item.nombre}.`);
             }
-            if (
-                stockRows[0].restriccion === "Con Receta Medica" &&
-                item.restriccion !== "Con Receta Medica"
-            ) {
-                throw new Error(
-                    `${item.nombre} es un medicamento de venta controlada.`
+
+            // Si el medicamento es de venta controlada, verificar receta activa del cliente
+            if (stockRows[0].restriccion === "Con Receta Medica") {
+                // Si la venta tiene cliente asociado, buscar receta válida
+                if (!data.id_cliente) {
+                    throw new Error(`${item.nombre} requiere receta médica (cliente no identificado).`);
+                }
+                const [recipes] = await connection.execute(
+                    `SELECT r.id_receta
+                     FROM recetas r
+                     INNER JOIN detalle_recetas dr
+                        ON dr.id_receta = r.id_receta
+                     WHERE r.id_cliente = ?
+                       AND r.estado IN ('Pendiente','Utilizada')
+                       AND (r.fecha_vencimiento IS NULL OR r.fecha_vencimiento >= ?)
+                       AND dr.id_medicamento = ?
+                     LIMIT 1 FOR UPDATE`,
+                    [data.id_cliente, getLocalDateValue(), item.id_medicamento]
                 );
+                if (!recipes.length) {
+                    throw new Error(`${item.nombre} requiere receta médica válida asociada al cliente.`);
+                }
+            }
+
+            // Verificar existencia suficiente en lotes no vencidos (PEPS/FIFO)
+            const requiredUnits = requiredStock;
+            const today = getLocalDateValue();
+            const [lots] = await connection.execute(
+                `SELECT id_lote, cantidad_disponible, fecha_vencimiento
+                 FROM lote
+                 WHERE id_medicamento = ?
+                   AND cantidad_disponible > 0
+                   AND fecha_vencimiento > ?
+                 ORDER BY fecha_ingreso, id_lote FOR UPDATE`,
+                [item.id_medicamento, today]
+            );
+            let available = 0;
+            for (const l of lots) available += Number(l.cantidad_disponible || 0);
+            if (available < requiredUnits) {
+                throw new Error(`No hay suficiente stock no vencido de ${item.nombre}.`);
             }
         }
 
@@ -3441,6 +3560,34 @@ async function saveSaleTransaction(data) {
                     item.id_medicamento,
                 ]
             );
+
+            // Descontar del/los lotes siguiendo PEPS (FIFO) solo de lotes no vencidos
+            let toConsume = item.cantidad * item.unidades_stock;
+            if (toConsume > 0) {
+                const today = getLocalDateValue();
+                const [availableLots] = await connection.execute(
+                    `SELECT id_lote, cantidad_disponible
+                     FROM lote
+                     WHERE id_medicamento = ?
+                       AND cantidad_disponible > 0
+                       AND fecha_vencimiento > ?
+                     ORDER BY fecha_ingreso, id_lote FOR UPDATE`,
+                    [item.id_medicamento, today]
+                );
+                for (const lot of availableLots) {
+                    if (toConsume <= 0) break;
+                    const take = Math.min(Number(lot.cantidad_disponible || 0), toConsume);
+                    if (take <= 0) continue;
+                    await connection.execute(
+                        `UPDATE lote SET cantidad_disponible = cantidad_disponible - ? WHERE id_lote = ?`,
+                        [take, lot.id_lote]
+                    );
+                    toConsume -= take;
+                }
+                if (toConsume > 0) {
+                    throw new Error(`Error al asignar lotes para ${item.nombre}; stock inconsistente.`);
+                }
+            }
         }
 
         if (data.id_cliente) {
@@ -3960,6 +4107,55 @@ function getLocalDateValue(date = new Date()) {
     const month = String(date.getMonth() + 1).padStart(2, "0");
     const day = String(date.getDate()).padStart(2, "0");
     return `${year}-${month}-${day}`;
+}
+
+// Revisa lotes cuya fecha de vencimiento ya pasó y los marca como 'Vencido',
+// restando su `cantidad_disponible` del `medicamentos.stock_total`.
+async function expireLotsIfNeeded() {
+    const today = getLocalDateValue();
+    const connection = await db.getConnection();
+    try {
+        await connection.beginTransaction();
+        const [rows] = await connection.execute(
+            `SELECT id_lote, id_medicamento, cantidad_disponible
+             FROM lote
+             WHERE fecha_vencimiento <= ?
+               AND estado <> 'Vencido'
+               AND cantidad_disponible > 0
+             FOR UPDATE`,
+            [today]
+        );
+        if (!rows.length) {
+            await connection.commit();
+            connection.release();
+            return;
+        }
+        for (const lot of rows) {
+            const qty = Number(lot.cantidad_disponible || 0);
+            if (qty <= 0) continue;
+            // Restar del stock_total de forma segura (no negativo)
+            await connection.execute(
+                `UPDATE medicamentos
+                 SET stock_total = GREATEST(stock_total - ?, 0)
+                 WHERE id_medicamento = ?`,
+                [qty, lot.id_medicamento]
+            );
+            // Marcar lote como vencido y poner cantidad disponible en 0
+            await connection.execute(
+                `UPDATE lote
+                 SET cantidad_disponible = 0,
+                     estado = 'Vencido'
+                 WHERE id_lote = ?`,
+                [lot.id_lote]
+            );
+        }
+        await connection.commit();
+    } catch (err) {
+        await connection.rollback();
+        throw err;
+    } finally {
+        try { connection.release(); } catch {}
+    }
 }
 
 async function loadLotMedicineCatalog() {

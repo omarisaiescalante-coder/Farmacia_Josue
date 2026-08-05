@@ -218,6 +218,59 @@ VALUES
 (4, 'Ana', 'Rodriguez', '0801-2000-00321', '9644-7788', 'ana.rodriguez@gmail.com', 'Colonia Kennedy, Tegucigalpa', '2000-02-17', 10, 'Activo'),
 (5, 'Luis', 'Gomez', '0703-1992-00654', '9533-9900', 'luis.gomez@gmail.com', 'Barrio La Reforma, Danli', '1992-06-30', 0, 'Inactivo');
 
+-- =========================================================
+-- Ajustes de presentaciones: asegurar que sueros/frascos/ampollas
+-- sean tratadas como unidades enteras (no fraccionables) al mostrar stock.
+-- Esto normaliza `unidades_stock` en las presentaciones donde aplique.
+-- =========================================================
+
+-- Poner `unidades_stock = 1` para presentaciones que claramente son frascos/ampollas/sueros
+UPDATE medicamento_presentaciones
+SET unidades_stock = 1
+WHERE LOWER(nombre_presentacion) REGEXP 'frasco|ampolla|ampollas|suero';
+
+-- Nota: revisar manualmente presentaciones que incluyen cantidades explícitas (ej. 'Caja de 100')
+-- para mantener el número correcto de unidades por presentación si aplica.
+
+-- =========================================================
+-- Normalizar `unidades_stock` automáticamente desde la descripción
+-- de `medicamentos.presentacion` cuando contiene un número.
+-- =========================================================
+
+-- 1) Para presentaciones 'Caja' tomar el primer número que aparezca
+--    en `medicamentos.presentacion` (ej. 'Caja de 20 tabletas' -> 20)
+UPDATE medicamento_presentaciones mp
+JOIN medicamentos m ON mp.id_medicamento = m.id_medicamento
+SET mp.unidades_stock = CAST(REGEXP_SUBSTR(m.presentacion, '(\\d+)') AS UNSIGNED)
+WHERE LOWER(mp.nombre_presentacion) = 'caja'
+    AND m.presentacion REGEXP '[0-9]+';
+
+-- 2) Asegurar que la presentación 'Unidad' tenga 1 unidad
+UPDATE medicamento_presentaciones
+SET unidades_stock = 1
+WHERE LOWER(nombre_presentacion) = 'unidad';
+
+-- 3) Para 'Blister' si la presentación del medicamento contiene un número,
+--    usar ese número si parece razonable, de lo contrario usar 10 como valor por defecto.
+UPDATE medicamento_presentaciones mp
+JOIN medicamentos m ON mp.id_medicamento = m.id_medicamento
+SET mp.unidades_stock = COALESCE(
+        CAST(REGEXP_SUBSTR(m.presentacion, '(\\d+)') AS UNSIGNED),
+        10
+) 
+WHERE LOWER(mp.nombre_presentacion) = 'blister';
+
+-- 4) Reasegurar que frascos/ampollas/sueros sean 1 (no fraccionables)
+UPDATE medicamento_presentaciones
+SET unidades_stock = 1
+WHERE LOWER(nombre_presentacion) REGEXP 'frasco|ampolla|ampollas|suero';
+
+-- 5) Revisar discrepancias: mostrar filas que quedaron con unidades_stock <= 0
+SELECT * FROM medicamento_presentaciones WHERE unidades_stock <= 0 LIMIT 50;
+
+-- Fin de normalizaciones automáticas. Revisa las filas con `SELECT` antes de
+-- ejecutar en producción si no deseas cambios automáticos.
+
 
 -- =========================================================
 -- 					 USUARIOS
@@ -321,6 +374,15 @@ VALUES
 (18, 18, 'LOT-SU-018', 150, 150, '2026-05-13', '2028-05-13', 8.00, 'Disponible'),
 (19, 19, 'LOT-VI-019', 90, 90, '2026-05-14', '2028-05-14', 55.00, 'Disponible'),
 (20, 20, 'LOT-DE-020', 0, 0, '2026-05-15', '2028-05-15', 110.00, 'Agotado');
+
+-- Lote vencido agregado para pruebas (no debe permitirse vender desde este lote)
+INSERT INTO Lote
+(id_lote, id_medicamento, numero_lote, cantidad_inicial, cantidad_disponible, fecha_fabricacion, fecha_vencimiento, precio_compra, estado)
+VALUES
+(21, 1, 'LOT-EX-001', 10, 10, '2024-01-01', '2025-01-01', 35.50, 'Vencido');
+
+-- Ajuste del stock_total del medicamento para incluir el lote vencido (refleja existencia global)
+UPDATE medicamentos SET stock_total = stock_total + 10 WHERE id_medicamento = 1;
 
 
 -- =========================================================
