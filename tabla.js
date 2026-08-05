@@ -3544,6 +3544,15 @@ async function deleteRecord(id) {
         if (moduleName === "ventas") {
             await deleteSaleTransaction(id);
         } else {
+            // SI ESTÁS EN EL MÓDULO DE MEDICAMENTOS, BORRA PRIMERO SUS LOTES RELACIONADOS
+            if (moduleName === "medicamentos") {
+                await db.execute(
+                    `DELETE FROM lote WHERE id_medicamento = ?`,
+                    [id]
+                );
+            }
+
+            // AHORA PROCEDE A ELIMINAR EL MEDICAMENTO SIN ERRORES DE LLAVE FORÁNEA
             await db.execute(
                 `DELETE FROM ${config.table}
                  WHERE ${config.id} = ?`,
@@ -3553,9 +3562,15 @@ async function deleteRecord(id) {
         showMessage("Registro eliminado.");
         await loadRows();
     } catch (error) {
-        showMessage(`No se pudo eliminar: ${error.message}`, true);
+        if (error.code === 'ER_ROW_IS_REFERENCED_2' || error.errno === 1451) {
+            showMessage("No se puede eliminar un medicamento que todavía tenga existencias.", true);
+        } else {
+            showMessage(`No se pudo eliminar: ${error.message}`, true);
+        }
+        message.scrollIntoView({ behavior: 'smooth', block: 'center' });
     }
 }
+
 
 function confirmDeleteRecord() {
     return new Promise((resolve) => {
