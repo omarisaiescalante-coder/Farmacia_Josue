@@ -3763,10 +3763,6 @@ async function configureLotForm() {
                         placeholder="Precio de venta">
                 </div>
             </div>
-            <div id="lotConversionSummary"
-                class="alert alert-info py-2 d-none">
-                Configure las equivalencias del empaque.
-            </div>
             <div id="lotPresentations" class="row g-2 d-none"></div>
             <button id="addLotPresentation" type="button"
                 class="btn btn-outline-success btn-sm mt-2 d-none">
