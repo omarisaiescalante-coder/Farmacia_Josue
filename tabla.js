@@ -612,6 +612,9 @@ function renderForm() {
             input.minLength = field.exactLength;
             input.maxLength = field.exactLength;
         }
+        if (field.type === "date") {
+            limitDateYearToFourDigits(input);
+        }
         if (field.placeholder) {
             input.placeholder = field.placeholder;
         }
@@ -1884,7 +1887,8 @@ async function loadRows() {
             ? ", distribuidores.nombre AS nombre_distribuidor"
             : "";
         const lotMedicineName = usesLotMedicine
-            ? ", medicamentos.nombre AS nombre_medicamento"
+            ? `, medicamentos.nombre AS nombre_medicamento,
+                medicamentos.laboratorio AS laboratorio`
             : "";
 
         [rows] = await db.query(
@@ -1937,6 +1941,15 @@ function renderTable(records = rows) {
         fields.splice(dniIndex + 1, 0, {
             name: "nombre_cliente",
             label: "Nombre del cliente",
+        });
+    }
+    if (moduleName === "lote") {
+        const medicineIndex = fields.findIndex(
+            (field) => field.name === "id_medicamento"
+        );
+        fields.splice(medicineIndex + 1, 0, {
+            name: "laboratorio",
+            label: "Laboratorio",
         });
     }
 
@@ -3001,6 +3014,13 @@ async function saveRecord(event) {
         clearForm();
         await loadRows();
     } catch (error) {
+        if (moduleName === "clientes" && error?.code === "ER_DUP_ENTRY") {
+            showMessage(
+                "Cliente ya registrado. La identidad ingresada ya existe.",
+                true
+            );
+            return;
+        }
         showMessage(error.message, true);
     }
 }
@@ -3446,6 +3466,9 @@ async function editRecord(row) {
     }
 
     saveButton.textContent = "Actualizar";
+    if (moduleName === "medicamentos") {
+        saveButton.classList.remove("d-none");
+    }
     window.scrollTo({ top: 0, behavior: "smooth" });
 }
 
@@ -3617,6 +3640,9 @@ function clearForm() {
     });
     editingId = null;
     saveButton.textContent = "Guardar";
+    if (moduleName === "medicamentos") {
+        saveButton.classList.add("d-none");
+    }
     
     const password = config.fields.find((field) => field.type === "password");
     if (password) {
@@ -3832,7 +3858,11 @@ async function configureLotForm() {
 }
 
 function limitDateYearToFourDigits(input) {
-    input.max = "9999-12-31";
+    if (!input.max) {
+        input.max = "9999-12-31";
+    }
+    if (input.dataset.fourDigitYearLimit) return;
+    input.dataset.fourDigitYearLimit = "true";
     input.addEventListener("input", () => {
         const parts = input.value.split("-");
         if (parts[0]?.length > 4) {
