@@ -740,6 +740,10 @@ function renderForm() {
         loadNextMedicineCode();
     }
 
+    if (moduleName === "clientes") {
+        configureClientIdentityAvailability();
+    }
+
     if (moduleName === "compras") {
         configureDistributorAutocomplete();
         createQuickDistributorRegistration();
@@ -749,6 +753,60 @@ function renderForm() {
     if (moduleName === "lote") {
         configureLotForm();
     }
+}
+
+// Comprueba la identidad al escribirla para evitar intentar registrar clientes duplicados.
+function configureClientIdentityAvailability() {
+    const identityInput = document.getElementById("identidad");
+    if (!identityInput) return;
+
+    const group = identityInput.closest("div");
+    const feedback = document.createElement("div");
+    feedback.id = "clientIdentityFeedback";
+    feedback.className = "invalid-feedback d-none";
+    group.appendChild(feedback);
+
+    let searchTimer = null;
+    let requestId = 0;
+    const clearFeedback = () => {
+        identityInput.setCustomValidity("");
+        identityInput.classList.remove("is-invalid");
+        feedback.textContent = "";
+        feedback.classList.add("d-none");
+    };
+
+    identityInput.addEventListener("input", () => {
+        if (searchTimer) window.clearTimeout(searchTimer);
+        const currentRequest = ++requestId;
+        clearFeedback();
+
+        const identity = identityInput.value.trim();
+        if (identity.length !== 15) return;
+
+        searchTimer = window.setTimeout(async () => {
+            try {
+                const [clients] = await db.execute(
+                    `SELECT id_cliente
+                     FROM clientes
+                     WHERE identidad = ?
+                     LIMIT 1`,
+                    [identity]
+                );
+                if (currentRequest !== requestId || !clients.length) return;
+                if (editingId !== null && clients[0].id_cliente === editingId) {
+                    return;
+                }
+
+                identityInput.setCustomValidity("Cliente ya registrado.");
+                identityInput.classList.add("is-invalid");
+                feedback.textContent =
+                    "Cliente ya registrado. La identidad ingresada ya existe.";
+                feedback.classList.remove("d-none");
+            } catch (error) {
+                console.error("No se pudo verificar la identidad:", error);
+            }
+        }, 350);
+    });
 }
 
 
@@ -3642,6 +3700,16 @@ function clearForm() {
     saveButton.textContent = "Guardar";
     if (moduleName === "medicamentos") {
         saveButton.classList.add("d-none");
+    }
+    if (moduleName === "clientes") {
+        document.getElementById("identidad")?.setCustomValidity("");
+        const identityFeedback = document.getElementById(
+            "clientIdentityFeedback"
+        );
+        if (identityFeedback) {
+            identityFeedback.textContent = "";
+            identityFeedback.classList.add("d-none");
+        }
     }
     
     const password = config.fields.find((field) => field.type === "password");
