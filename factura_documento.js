@@ -1,3 +1,4 @@
+// Obtiene una venta y construye el documento de factura que se puede imprimir.
 const invoice = document.getElementById("invoice");
 let db;
 let ipcRenderer;
@@ -90,7 +91,7 @@ async function loadInvoice() {
     invoice.dataset.invoiceNumber = sale.numero_factura;
     invoice.innerHTML = `
         <header class="receipt__header">
-            <img class="receipt__logo" src="./assets/logo-farmacia-josue.jpeg" alt="">
+            <img class="receipt__logo" src="./assets/logo-farmacia-transparente.png" alt="">
             <h1>Farmacia Josue</h1>
             <p>Salud, servicio y confianza</p>
             <p>Jacaleapa, El Paraíso, Honduras</p>

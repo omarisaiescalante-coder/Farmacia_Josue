@@ -1,3 +1,4 @@
+/* Tema visual global: colores, tipografía y componentes compartidos. */
 :root {
     --fj-brand-950: #062e2a;
     --fj-brand-900: #083c36;
@@ -513,7 +514,7 @@ body[data-report] .navbar-brand::before {
     height: 42px;
     flex: 0 0 auto;
     border-radius: 12px;
-    background: url("../assets/logo-farmacia-josue.jpeg") center / contain no-repeat;
+    background: url("../assets/logo-farmacia-transparente.png") center / contain no-repeat;
     content: "";
 }
 

@@ -1,3 +1,4 @@
+// Crea y exporta el pool de conexiones reutilizable hacia MySQL.
 const mysql = require('mysql2');
 //Importamos la libreria mysql2 para concetar a MySQL
 

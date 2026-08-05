@@ -1,3 +1,4 @@
+// Configuración declarativa del formulario y tabla de clientes.
 module.exports = {
     title: "Clientes",
     description: "Administración de clientes registrados.",

@@ -1,6 +1,8 @@
+// Controla la autenticación, las sesiones y el menú principal según el rol.
 const db = require("./database").promise();
 const { ipcRenderer } = require("electron");
 
+// Relaciona el identificador de cada módulo con su configuración.
 const modules = {
     usuarios: require("./usuarios"),
     clientes: require("./clientes"),
@@ -11,6 +13,7 @@ const modules = {
     facturas: require("./facturas"),
 };
 
+// Define qué módulos puede consultar cada tipo de usuario.
 const permissions = {
     Administrador: [
         "ventas",
@@ -275,6 +278,7 @@ function updateSessionSummary(user, allowed) {
     roleSummary.textContent = user.rol || "Usuario";
 }
 
+// Renderiza el menú autorizado después de validar el usuario.
 function showMenu(user) {
     const allowed = permissions[normalizeRole(user.rol)];
 
@@ -304,6 +308,7 @@ function loadRememberedUser() {
     });
 }
 
+// Valida credenciales, inicia la sesión y muestra el panel principal.
 loginForm.addEventListener("submit", async (event) => {
     event.preventDefault();
     clearError();

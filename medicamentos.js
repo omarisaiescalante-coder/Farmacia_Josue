@@ -1,3 +1,4 @@
+// Configuración declarativa del catálogo de medicamentos.
 module.exports = {
     title: "Medicamentos",
     description: "Catálogo general de medicamentos.",

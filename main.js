@@ -1,3 +1,4 @@
+// Proceso principal de Electron: ventana, sesión temporal y exportación a PDF.
 const {
     app,
     BrowserWindow,
@@ -6,6 +7,7 @@ const {
 } = require('electron');
 const fs = require('fs');
 
+// Guarda el usuario autenticado mientras la aplicación permanece abierta.
 let activeUser = null;
 
 ipcMain.on('session:get-user', (event) => {
@@ -20,6 +22,7 @@ ipcMain.on('session:clear-user', () => {
     activeUser = null;
 });
 
+// Configura y abre la ventana principal de la aplicación.
 function createWindow() {
     const win = new BrowserWindow({
         width: 1280,
@@ -81,6 +84,7 @@ app.on('activate', () => {
     }
 });
 
+// Recibe una solicitud del reporte y guarda su vista actual como PDF.
 ipcMain.handle(
     'generate-report-pdf',
     async (event, request) => {

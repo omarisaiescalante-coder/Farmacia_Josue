@@ -1,3 +1,4 @@
+// Configuración de los campos para el ingreso de lotes e inventario.
 module.exports = {
     title: "Lotes",
     description: "Control de lotes de medicamentos.",

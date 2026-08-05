@@ -1,3 +1,4 @@
+// Genera los reportes de ventas, compras, lotes y vencimientos por fecha.
 const db = require("./database").promise();
 const { ipcRenderer } = require("electron");
 
@@ -54,6 +55,7 @@ document
     .getElementById("generatePdfButton")
     .addEventListener("click", generatePdf);
 
+// Solicita al proceso principal que guarde el reporte visible como PDF.
 async function generatePdf() {
     try {
         const suggestedName =
@@ -153,6 +155,7 @@ function initializePurchasesReport() {
     loadPurchasesReport();
 }
 
+// Consulta y presenta las compras realizadas en el período elegido.
 async function loadPurchasesReport() {
     try {
         const start = document.getElementById("purchasesStartDate").value;
@@ -205,6 +208,7 @@ async function loadPurchasesReport() {
     }
 }
 
+// Calcula ingresos, egresos y ventas diarias del período elegido.
 async function loadSalesReport() {
     try {
         const start = document.getElementById("salesStartDate").value;
@@ -285,6 +289,7 @@ function initializeLotsReport() {
     loadLotsReport();
 }
 
+// Lista los lotes ingresados y calcula la inversión total.
 async function loadLotsReport() {
     try {
         const start = document.getElementById("lotsStartDate").value;
@@ -370,6 +375,7 @@ function initializeExpirationReport() {
     loadExpirationReport();
 }
 
+// Lista los lotes vencidos o próximos a vencer según las fechas indicadas.
 async function loadExpirationReport() {
     try {
         const start =
@@ -430,6 +436,7 @@ function formatDate(value) {
     return String(value || "").replace(/T.*$/, "");
 }
 
+// Construye la tabla HTML común para los resultados de cualquier reporte.
 function renderTable(headers, data) {
     reportTable.replaceChildren();
     const table = document.createElement("table");

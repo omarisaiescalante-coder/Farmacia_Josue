@@ -1,3 +1,4 @@
+// Configuración del historial de puntos de fidelidad del cliente.
 module.exports = {
     title: "Movimientos de puntos",
     description: "Historial de acumulacion, canje y ajustes de puntos.",

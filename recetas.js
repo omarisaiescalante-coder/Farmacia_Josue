@@ -1,3 +1,4 @@
+// Configuración del registro de recetas médicas.
 module.exports = {
     title: "Recetas",
     description: "Registro de recetas medicas de clientes.",

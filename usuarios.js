@@ -1,3 +1,4 @@
+// Configuración declarativa del formulario y tabla de usuarios.
 module.exports = {
     title: "Usuarios",
     description: "Administración de usuarios del sistema.",

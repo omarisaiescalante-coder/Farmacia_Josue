@@ -1,3 +1,4 @@
+// Configuración de los datos requeridos al registrar una venta.
 module.exports = {
     title: "Ventas",
     description: "Registro de ventas y facturación.",

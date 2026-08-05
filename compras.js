@@ -1,3 +1,4 @@
+// Configuración de los datos requeridos para registrar una compra.
 module.exports = {
     title: "Compras",
     description: "Registro de compras de medicamentos a laboratorios.",
@@ -48,6 +49,7 @@ module.exports = {
             name: "fecha_compra",
             label: "Fecha de compra",
             type: "date",
+            defaultToday: true,
             maxToday: true,
             required: true
         },

@@ -1,9 +1,11 @@
+-- Esquema de datos de Farmacia Josue: entidades, restricciones y relaciones.
 CREATE DATABASE Farmacia_bd;
 
 use Farmacia_bd;
 
 -- ----------------------------------------------------------------------
 
+-- Clientes y su saldo de puntos de fidelidad.
 create table clientes(
 
 id_cliente INT AUTO_INCREMENT PRIMARY KEY,
@@ -22,6 +24,7 @@ fecha_registro DATETIME DEFAULT CURRENT_TIMESTAMP
 
 -- ----------------------------------------------------------------------
 
+-- Usuarios que pueden acceder a la aplicación y sus roles.
 CREATE TABLE usuarios (
 
 id_usuario INT AUTO_INCREMENT PRIMARY KEY,
@@ -42,6 +45,7 @@ fecha_registro DATETIME DEFAULT CURRENT_TIMESTAMP
 -- ----------------------------------------------------------------------
 
 
+-- Historial de cambios en los puntos de cada cliente.
 CREATE TABLE Movimientos_Puntos (
 
 id_movimiento INT AUTO_INCREMENT PRIMARY KEY,
@@ -58,6 +62,7 @@ FOREIGN KEY (id_cliente) REFERENCES clientes(id_cliente)
 
 -- --------------------------------------------------------------------
 
+-- Catálogo e inventario general de medicamentos.
 CREATE TABLE medicamentos (
 
 id_medicamento INT AUTO_INCREMENT PRIMARY KEY,
@@ -80,6 +85,7 @@ fecha_registro DATETIME DEFAULT CURRENT_TIMESTAMP
 
 -- --------------------------------------------------------------------
 
+-- Presentaciones y precios de venta de cada medicamento.
 CREATE TABLE Medicamento_presentaciones (
 
 id_presentacion INT AUTO_INCREMENT PRIMARY KEY,
@@ -95,6 +101,7 @@ FOREIGN KEY (id_medicamento) REFERENCES medicamentos(id_medicamento)
 
 -- --------------------------------------------------------------------
 
+-- Lotes recibidos, sus cantidades, costos y fechas de vencimiento.
 CREATE TABLE Lote (
 
 id_lote INT AUTO_INCREMENT PRIMARY KEY,
@@ -112,6 +119,7 @@ FOREIGN KEY (id_medicamento) REFERENCES medicamentos(id_medicamento)
 );
 -- -------------------------------------------------------------------
 
+-- Laboratorios o proveedores que suministran medicamentos.
 CREATE TABLE Distribuidores (
 
 id_distribuidor INT AUTO_INCREMENT PRIMARY KEY,
@@ -126,6 +134,7 @@ fecha_registro DATETIME DEFAULT CURRENT_TIMESTAMP
 
 -- -------------------------------------------------------------------
 
+-- Encabezado de compras hechas a distribuidores.
 CREATE TABLE Compras (
     id_compra INT AUTO_INCREMENT PRIMARY KEY,
     numero_factura VARCHAR(50) UNIQUE NOT NULL,
@@ -150,6 +159,7 @@ ADD FOREIGN KEY (id_compra) REFERENCES compras(id_compra);
 
 -- -------------------------------------------------------------------
 
+-- Encabezado de cada venta realizada por un usuario.
 CREATE TABLE Ventas (
 
 id_venta INT AUTO_INCREMENT PRIMARY KEY,
@@ -174,6 +184,7 @@ FOREIGN KEY (id_usuario) REFERENCES usuarios(id_usuario)
 
 -- --------------------------------------------------------------------
 
+-- Productos, cantidades y precios que forman cada venta.
 CREATE TABLE Detalles_venta (
 
 id_detalle_venta INT AUTO_INCREMENT PRIMARY KEY,

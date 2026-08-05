@@ -1,3 +1,4 @@
+// Configuración de la vista de consulta de facturas.
 module.exports = {
     title: "Facturas",
     description: "Consulta de facturas emitidas a clientes.",

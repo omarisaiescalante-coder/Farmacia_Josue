@@ -1,3 +1,4 @@
+// Configuración de los medicamentos e indicaciones de cada receta.
 module.exports = {
     title: "Detalle de recetas",
     description: "Medicamentos indicados en cada receta.",

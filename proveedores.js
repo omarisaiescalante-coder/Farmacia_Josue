@@ -1,3 +1,4 @@
+// Administra el listado, edición y eliminación de laboratorios o proveedores.
 const db = require("./database").promise();
 const { ipcRenderer } = require("electron");
 let editingProviderId = null;
@@ -45,6 +46,7 @@ document.getElementById("logoutButton").addEventListener("click", () => {
     window.location.href = "index.html";
 });
 
+// Consulta los proveedores disponibles y actualiza su tabla.
 async function loadProviders() {
     try {
         const [providers] = await db.query(
@@ -89,6 +91,7 @@ function closeEditForm() {
     document.getElementById("providerFormSection").classList.add("d-none");
 }
 
+// Valida y guarda los cambios de un proveedor seleccionado.
 async function saveProvider(event) {
     event.preventDefault();
     if (!editingProviderId) return;
@@ -133,6 +136,7 @@ async function saveProvider(event) {
     }
 }
 
+// Elimina un proveedor solo si no tiene compras relacionadas.
 async function deleteProvider(provider) {
     const confirmed = window.confirm(
         `¿Desea eliminar el laboratorio o proveedor "${provider.nombre}"?`

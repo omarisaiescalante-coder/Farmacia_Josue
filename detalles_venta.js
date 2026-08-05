@@ -1,3 +1,4 @@
+// Configuración de los renglones que componen una venta.
 module.exports = {
     title: "Detalles de venta",
     description: "Medicamentos incluidos en cada venta.",

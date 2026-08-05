@@ -1,3 +1,5 @@
+// Motor reutilizable de formularios, tablas, CRUD y procesos especiales.
+// Lee la configuración del módulo activo para generar su interfaz y consultas.
 const db = require("./database").promise();
 const { ipcRenderer } = require("electron");
 
@@ -544,6 +546,7 @@ function formatStructuredInput(value, format) {
     return value;
 }
 
+// Construye los campos del formulario desde la configuración del módulo activo.
 function renderForm() {
     for (const field of config.fields) {
         if (field.hidden) {
@@ -629,6 +632,11 @@ function renderForm() {
                 input.options[input.selectedIndex].defaultSelected = true;
             }
         }
+        // Completa las fechas configuradas con la fecha local actual sin bloquear su edición.
+        if (!field.currentUser && field.defaultToday && !input.value) {
+            input.value = getLocalDateValue();
+            input.defaultValue = input.value;
+        }
 
         if (field.autoInvoice) {
             input.readOnly = true;
@@ -675,20 +683,6 @@ function renderForm() {
         }
 
         group.append(label, input);
-        if (field.type === "password") {
-            const togglePassword = document.createElement("button");
-            togglePassword.type = "button";
-            togglePassword.className = "btn btn-outline-secondary btn-sm mt-2";
-            togglePassword.textContent = "Mostrar contraseña";
-            togglePassword.addEventListener("click", () => {
-                const willShow = input.type === "password";
-                input.type = willShow ? "text" : "password";
-                togglePassword.textContent = willShow
-                    ? "Ocultar contraseña"
-                    : "Mostrar contraseña";
-            });
-            group.appendChild(togglePassword);
-        }
         if (field.passwordRule) {
             const passwordFeedback = document.createElement("div");
             passwordFeedback.id = `${field.name}Feedback`;
@@ -1813,6 +1807,7 @@ function renderSaleItems() {
     calculateSalesTotals();
 }
 
+// Consulta los registros del módulo actual y actualiza la tabla visual.
 async function loadRows() {
     try {
         if (moduleName === "facturas") {
@@ -2556,6 +2551,101 @@ function confirmLotData(details) {
     });
 }
 
+// Muestra la misma confirmación visual para registros que no requieren un flujo especial.
+function confirmRecordData(details) {
+    return new Promise((resolve) => {
+        const dialog = document.createElement("dialog");
+        dialog.className = "sale-confirm-dialog";
+        dialog.innerHTML = `
+            <form method="dialog" class="sale-confirm-card">
+                <header class="sale-confirm-header">
+                    <span class="sale-confirm-icon" aria-hidden="true">
+                        <svg viewBox="0 0 24 24">
+                            <path d="M5 3h14v18l-3-2-4 2-4-2-3 2V3Z"></path>
+                            <path d="M8 8h8M8 12h5"></path>
+                        </svg>
+                    </span>
+                    <span>
+                        <span class="sale-confirm-eyebrow" data-value="title"></span>
+                        <strong>Verifique los datos</strong>
+                    </span>
+                </header>
+                <div class="sale-confirm-body">
+                    <p class="text-secondary mb-3" data-value="description"></p>
+                    <div class="sale-confirm-client">
+                        <span data-value="subjectLabel"></span>
+                        <span class="sale-confirm-client-data">
+                            <strong data-value="subject"></strong>
+                            <small data-value="secondary"></small>
+                        </span>
+                    </div>
+                    <dl class="sale-confirm-summary"></dl>
+                    <div class="sale-confirm-total d-none">
+                        <span data-value="totalLabel"></span>
+                        <strong data-value="total"></strong>
+                    </div>
+                </div>
+                <footer class="sale-confirm-actions">
+                    <button data-action="cancel" type="button"
+                        class="btn btn-outline-secondary">Volver y corregir</button>
+                    <button data-action="confirm" type="button"
+                        class="btn btn-success fw-semibold">Confirmar y registrar</button>
+                </footer>
+            </form>`;
+
+        const setValue = (name, value) => {
+            dialog.querySelector(`[data-value="${name}"]`).textContent =
+                value || "No registrado";
+        };
+        setValue("title", details.title);
+        setValue("description", details.description);
+        setValue("subjectLabel", details.subjectLabel);
+        setValue("subject", details.subject);
+        setValue("secondary", details.secondary);
+
+        const summary = dialog.querySelector(".sale-confirm-summary");
+        details.fields.forEach(({ label, value }) => {
+            const item = document.createElement("div");
+            const term = document.createElement("dt");
+            const definition = document.createElement("dd");
+            term.textContent = label;
+            definition.textContent = value || "No registrado";
+            item.append(term, definition);
+            summary.appendChild(item);
+        });
+
+        if (details.total) {
+            const total = dialog.querySelector(".sale-confirm-total");
+            total.classList.remove("d-none");
+            setValue("totalLabel", details.total.label);
+            setValue("total", details.total.value);
+        }
+
+        let completed = false;
+        const finish = (result) => {
+            if (completed) return;
+            completed = true;
+            dialog.close();
+            dialog.remove();
+            resolve(result);
+        };
+        dialog.querySelector('[data-action="confirm"]')
+            .addEventListener("click", () => finish(true));
+        dialog.querySelector('[data-action="cancel"]')
+            .addEventListener("click", () => finish(false));
+        dialog.addEventListener("cancel", (event) => {
+            event.preventDefault();
+            finish(false);
+        });
+        dialog.addEventListener("click", (event) => {
+            if (event.target === dialog) finish(false);
+        });
+
+        document.body.appendChild(dialog);
+        dialog.showModal();
+    });
+}
+
 function formatValue(value) {
     if (value == null) return "";
     if (value instanceof Date) return value.toISOString().slice(0, 10);
@@ -2677,6 +2767,7 @@ function getData() {
     return data;
 }
 
+// Valida y guarda el formulario; incluye flujos especiales de ventas, compras y lotes.
 async function saveRecord(event) {
     event.preventDefault();
     if (isReadOnlyMedicine) {
@@ -2700,6 +2791,30 @@ async function saveRecord(event) {
         }
 
         if (moduleName === "compras") {
+            const confirmed = await confirmRecordData({
+                title: "Confirmar compra",
+                description:
+                    "Revise la información antes de registrar la compra.",
+                subjectLabel: "Proveedor",
+                subject: data.id_distribuidor,
+                secondary: document.getElementById("correo_distribuidor")
+                    ?.value.trim(),
+                fields: [
+                    { label: "Fecha de compra", value: data.fecha_compra },
+                    { label: "Método de pago", value: data.metodo_pago },
+                    { label: "Condición", value: data.estado },
+                    {
+                        label: "Teléfono",
+                        value: document.getElementById("telefono_distribuidor")
+                            ?.value.trim(),
+                    },
+                ],
+                total: {
+                    label: "Total de la compra",
+                    value: `L ${Number(data.total || 0).toFixed(2)}`,
+                },
+            });
+            if (!confirmed) return;
             await savePurchaseWithLot(data);
             showMessage(
                 "Compra, lote e inventario registrados correctamente."
@@ -2732,6 +2847,25 @@ async function saveRecord(event) {
             clearForm();
             await loadRows();
             return;
+        }
+
+        if (moduleName === "usuarios" && editingId === null) {
+            const confirmed = await confirmRecordData({
+                title: "Confirmar usuario",
+                description:
+                    "Revise la información antes de registrar el usuario.",
+                subjectLabel: "Usuario",
+                subject: `${data.nombre} ${data.apellido}`.trim(),
+                secondary: data.nombre_usuario,
+                fields: [
+                    { label: "Identidad", value: data.identidad },
+                    { label: "Correo", value: data.correo },
+                    { label: "Teléfono", value: data.telefono },
+                    { label: "Rol", value: data.rol },
+                    { label: "Estado", value: data.estado || "Activo" },
+                ],
+            });
+            if (!confirmed) return;
         }
 
         const clientDniField = config.fields.find(
@@ -3255,6 +3389,7 @@ async function saveSaleTransaction(data) {
     }
 }
 
+// Carga el registro seleccionado en el formulario para su actualización.
 async function editRecord(row) {
     if (isReadOnlyMedicine) {
         return;
@@ -3314,6 +3449,7 @@ async function editRecord(row) {
     window.scrollTo({ top: 0, behavior: "smooth" });
 }
 
+// Solicita confirmación y elimina el registro o revierte una venta si corresponde.
 async function deleteRecord(id) {
     if (isReadOnlyMedicine) {
         showMessage(
@@ -3785,6 +3921,8 @@ function selectLotMedicine(medicine) {
     renderLotPresentations(medicine.presentations);
     updateLotDisplayedStock();
     toggleQuickMedicineRegistration(false);
+    // Al seleccionar o registrar un medicamento, la lista ya no es necesaria.
+    document.getElementById("lotMedicineOptions")?.classList.add("d-none");
 }
 
 function clearLotMedicineDetails() {
@@ -4686,7 +4824,12 @@ function renderDistributorSuggestions(distributors, suggestionsDiv, inputElement
             const phoneInput = document.querySelector("[name='telefono_distribuidor']");
             const emailInput = document.querySelector("[name='correo_distribuidor']");
 
-            if (phoneInput) phoneInput.value = dist.telefono || "";
+            if (phoneInput) {
+                phoneInput.value = formatStructuredInput(
+                    dist.telefono || "",
+                    "phone"
+                );
+            }
             if (emailInput) emailInput.value = dist.correo || "";
 
             suggestionsDiv.classList.add("d-none");
