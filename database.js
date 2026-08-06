@@ -15,7 +15,7 @@ const connection = mysql.createPool({         //creamos conexion a la base de da
     //esperar a que se establezca la conexion antes de ejecutar consultas
     connectionLimit: 10,
     queueLimit: 0
-});
+}); 
 
 connection.getConnection(function(error, connection) {
     //abrimos la conexion a la base de datos

@@ -3147,7 +3147,7 @@ async function saveRecord(event) {
             if (isNewSale) {
                 showInvoiceReadyMessage(savedSaleId);
             } else {
-                showMessage("Venta actualizada correctamente.");
+                showMessage("Venta actualizada correctamente."); 
             }
             return;
         }

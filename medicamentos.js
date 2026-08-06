@@ -10,5 +10,5 @@ module.exports = {
         { name: "categoria", label: "Categoría" },
         { name: "presentacion", label: "Presentación", wide: true },
         { name: "estado", label: "Estado", type: "select", options: ["Disponible", "Agotado", "Inactivo"] }
-    ]
+    ] 
 };

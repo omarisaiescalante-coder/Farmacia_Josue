@@ -24,7 +24,7 @@ const permissions = {
         "facturas",
         "usuarios",
     ],
-    Cajero: [
+    Cajero: [ 
         "ventas",
         "medicamentos",
         "clientes",

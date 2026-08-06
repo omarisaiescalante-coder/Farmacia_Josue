@@ -12,7 +12,7 @@ module.exports = {
             readOnly: true,    
             required: true
         },
-        {
+        { 
             name: "id_usuario",
             label: "ID del usuario",
             type: "number",

@@ -14,4 +14,4 @@ module.exports = {
         { name: "fecha_nacimiento", label: "Fecha Nacimiento", type: "date", required: true },
         { name: "estado", label: "Estado", type: "select", options: ["Activo", "Inactivo"] }
     ]
-};
+}; 

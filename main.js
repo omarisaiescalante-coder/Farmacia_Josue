@@ -25,7 +25,7 @@ ipcMain.on('session:clear-user', () => {
 // Configura y abre la ventana principal de la aplicación.
 function createWindow() {
     const win = new BrowserWindow({
-        width: 1280,
+        width: 1280, 
         height: 820,
         minWidth: 960,
         minHeight: 640,

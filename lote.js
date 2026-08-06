@@ -26,7 +26,7 @@ module.exports = {
             virtual: true,
             showInTable: true,
             readOnly: true
-        },
+        }, 
         {
             name: "laboratorio",
             label: "Laboratorio",

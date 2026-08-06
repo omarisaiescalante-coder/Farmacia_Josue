@@ -25,7 +25,7 @@ if (!canViewReport) {
     window.alert("No tiene permiso para consultar este reporte.");
     window.location.replace("index.html");
 } else {
-    document.getElementById("sessionUser").textContent =
+    document.getElementById("sessionUser").textContent = 
         `${user.nombre} ${user.apellido} - ${user.rol}`;
 
     if (reportType === "ventas") initializeSalesReport();

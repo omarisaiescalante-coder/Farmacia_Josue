@@ -20,5 +20,5 @@ module.exports = {
         { name: "puntos_generados", label: "Puntos generados" },
         { name: "puntos_utilizados", label: "Puntos utilizados" },
         { name: "estado", label: "Estado" }
-    ]
+    ] 
 };

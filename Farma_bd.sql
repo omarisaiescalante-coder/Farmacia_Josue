@@ -42,7 +42,7 @@ fecha_registro DATETIME DEFAULT CURRENT_TIMESTAMP
 
 );
 
--- ----------------------------------------------------------------------
+-- ---------------------------------------------------------------------- 
 
 
 -- Historial de cambios en los puntos de cada cliente.

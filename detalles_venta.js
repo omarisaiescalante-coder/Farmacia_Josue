@@ -12,4 +12,4 @@ module.exports = {
         { name: "descuento", label: "Descuento", type: "number", min: 0, step: "0.01" },
         { name: "subtotal", label: "Subtotal", type: "number", min: 0, step: "0.01", required: true }
     ]
-};
+}; 

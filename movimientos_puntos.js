@@ -12,4 +12,4 @@ module.exports = {
         { name: "puntos_nuevos", label: "Puntos Nuevos", type: "number", min: 0, required: true },
         { name: "descripcion", label: "Descripción", type: "textarea", full: true }
     ]
-};
+}; 

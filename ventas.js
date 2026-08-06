@@ -28,7 +28,7 @@ module.exports = {
             name: "subtotal",
             label: "Subtotal",
             type: "number",
-            min: 0,
+            min: 0, 
             step: "0.01",
             automaticSubtotal: true,
             hideInTable: true,

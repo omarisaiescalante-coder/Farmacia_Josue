@@ -14,4 +14,4 @@ module.exports = {
         { name: "indicaciones", label: "Indicaciones", type: "textarea", full: true },
         { name: "cantidad_dispensada", label: "Cantidad dispensada", type: "number", min: 0 }
     ]
-};
+}; 

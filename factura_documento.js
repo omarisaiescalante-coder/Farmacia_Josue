@@ -20,7 +20,7 @@ const saleId = Number(
 
 document.getElementById("backButton").addEventListener("click", () => {
     window.close();
-});
+}); 
 
 document.getElementById("pdfButton").addEventListener("click", async () => {
     const number = invoice.dataset.invoiceNumber || "factura";

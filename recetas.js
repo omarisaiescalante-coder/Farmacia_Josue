@@ -23,4 +23,4 @@ module.exports = {
         { name: "observaciones", label: "Observaciones", type: "textarea", full: true },
         { name: "estado", label: "Estado", type: "select", options: ["Pendiente", "Utilizada", "Vencida", "Cancelada"] }
     ]
-};
+}; 

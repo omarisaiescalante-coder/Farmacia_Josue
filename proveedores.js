@@ -21,7 +21,7 @@ if (!canViewProviders) {
 } else {
     document.getElementById("sessionUser").textContent =
         `${user.nombre} ${user.apellido} - ${user.rol}`;
-    loadProviders();
+    loadProviders(); 
     window.setInterval(() => {
         if (!document.hidden) loadProviders();
     }, 5000);

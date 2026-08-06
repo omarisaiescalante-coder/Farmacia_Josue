@@ -23,5 +23,5 @@ module.exports = {
         },
         { name: "rol", label: "Rol", type: "select", options: ["Administrador", "Cajero"], required: true },
         { name: "estado", label: "Estado", type: "select", options: ["Activo", "Inactivo"], defaultValue: "Activo" }
-    ]
+    ] 
 };
