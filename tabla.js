@@ -1297,7 +1297,7 @@ function calculateSalesTotals() {
         Math.max(0, requestedPoints),
         availablePoints
     );
-    const pointsRate = usablePoints * 0.0005;
+    const pointsRate = Math.floor(usablePoints / 2) * 0.01;
     const rate = Math.min(1, ageRate + pointsRate);
     const discount = subtotal * rate;
     const taxableSubtotal = Math.max(0, subtotal - discount);
@@ -3080,7 +3080,7 @@ async function saveRecord(event) {
                     calculateAge(selectedClient.fecha_nacimiento)
                 )
                 : 0;
-            const pointsRate = usedPoints * 0.0005;
+            const pointsRate = Math.floor(usedPoints / 2) * 0.01;
             const discountRate = Math.min(
                 1,
                 ageRate + pointsRate
@@ -3457,28 +3457,6 @@ async function saveSaleTransaction(data) {
             }
 
             // Si el medicamento es de venta controlada, verificar receta activa del cliente
-            if (stockRows[0].restriccion === "Con Receta Medica") {
-                // Si la venta tiene cliente asociado, buscar receta válida
-                if (!data.id_cliente) {
-                    throw new Error(`${item.nombre} requiere receta médica (cliente no identificado).`);
-                }
-                const [recipes] = await connection.execute(
-                    `SELECT r.id_receta
-                     FROM recetas r
-                     INNER JOIN detalle_recetas dr
-                        ON dr.id_receta = r.id_receta
-                     WHERE r.id_cliente = ?
-                       AND r.estado IN ('Pendiente','Utilizada')
-                       AND (r.fecha_vencimiento IS NULL OR r.fecha_vencimiento >= ?)
-                       AND dr.id_medicamento = ?
-                     LIMIT 1 FOR UPDATE`,
-                    [data.id_cliente, getLocalDateValue(), item.id_medicamento]
-                );
-                if (!recipes.length) {
-                    throw new Error(`${item.nombre} requiere receta médica válida asociada al cliente.`);
-                }
-            }
-
             // Verificar existencia suficiente en lotes no vencidos (PEPS/FIFO)
             const requiredUnits = requiredStock;
             const today = getLocalDateValue();
@@ -3894,6 +3872,11 @@ function clearForm() {
         form.dataset.discountRate = "0";
         const puntosDisponibles = document.getElementById("puntos_disponibles");
         if (puntosDisponibles) puntosDisponibles.value = "0";
+        const clientName = document.getElementById("selectedClientName");
+        if (clientName) {
+            clientName.textContent = "";
+            clientName.className = "form-text fw-semibold";
+        }
         
         toggleQuickClientRegistration(false);
         resetSalePresentation();
